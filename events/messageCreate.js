@@ -100,8 +100,14 @@ module.exports = {
 
         const userId = message.author.id;
 
-        // ---- LANGUAGE POLICY (#chat-english) ----
-        if (!violationType && message.channel.name.includes('chat-english')) {
+        // ---- LANGUAGE POLICY (STRICTLY #chat-english ONLY) ----
+        // We only enforce English in the main international chat. 
+        // Tickets and other channels are EXEMPT.
+        const isEnglishOnlyChannel = message.channel.name.toLowerCase().includes('chat-english') && 
+                                   !message.channel.name.includes('ticket-') && 
+                                   !message.channel.name.includes('apply-');
+
+        if (!violationType && isEnglishOnlyChannel) {
             const hindiKeywords = [
                 'hai', 'kya', 'nhi', 'nahi', 'kuch', 'baat', 'sab', 'bhai', 'behen', 'bol', 'rhe', 'rha', 'thi', 'tha', 'kar', 'raha', 'rahe', 
                 'aap', 'tum', 'tera', 'mera', 'iska', 'uska', 'krna', 'kaise', 'h', 'vla', 'mene', 'chal', 'be', 're', 'ga', 'gi', 'se', 'ko',
