@@ -26,10 +26,30 @@ Rules:
 
 async function processAIQuery(query, userTag) {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) throw new Error("GEMINI_API_KEY is missing in environment variables!");
+        const groqKey = process.env.GROQ_API_KEY;
+        const geminiKey = process.env.GEMINI_API_KEY;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        // PREFER GROQ IF AVAILABLE (Much faster and more reliable for Railway)
+        if (groqKey) {
+            const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: SYSTEM_PROMPT },
+                    { role: "user", content: `User (${userTag}): ${query}` }
+                ],
+                response_format: { type: "json_object" }
+            }, {
+                headers: { 'Authorization': `Bearer ${groqKey}` }
+            });
+
+            const result = response.data.choices[0].message.content;
+            return JSON.parse(result);
+        }
+
+        // FALLBACK TO GEMINI
+        if (!geminiKey) throw new Error("No AI API keys found!");
+
+        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
         
         const response = await axios.post(url, {
             contents: [{
@@ -37,36 +57,16 @@ async function processAIQuery(query, userTag) {
             }]
         });
 
-        if (!response.data || !response.data.candidates) {
-            throw new Error("Invalid response from Gemini API");
-        }
-
         const text = response.data.candidates[0].content.parts[0].text;
-
-        // Extract JSON if present
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            try {
-                return JSON.parse(jsonMatch[0]);
-            } catch (e) {
-                return { action: "chat", message: text };
-            }
-        }
+        return jsonMatch ? JSON.parse(jsonMatch[0]) : { action: "chat", message: text };
 
-        return { action: "chat", message: text };
     } catch (error) {
-        console.error("AI Error Details:", error.response ? error.response.data : error.message);
-        
-        const errorData = error.response ? error.response.data : null;
-        let errorMsg = error.message;
-        if (errorData && errorData.error) errorMsg = errorData.error.message;
-
-        let userMsg = `🧠 **AI Error:** \`${errorMsg.slice(0, 150)}\``;
-        if (errorMsg.toLowerCase().includes("location") || errorMsg.toLowerCase().includes("supported")) {
-            userMsg += "\n> 🌏 **Region Issue:** Google doesn't support your server region. Please try **Singapore** or **US Central** in Railway.";
-        }
-        
-        return { action: "chat", message: userMsg };
+        console.error("AI Error:", error.message);
+        return { 
+            action: "chat", 
+            message: `🧠 **AI Error:** \`${error.message.slice(0, 100)}\`\n> Please ensure your **GROQ_API_KEY** or **GEMINI_API_KEY** is set correctly in Railway.` 
+        };
     }
 }
 
