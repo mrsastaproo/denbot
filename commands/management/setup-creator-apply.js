@@ -1,15 +1,41 @@
 const { 
     SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, 
-    ButtonBuilder, ButtonStyle, PermissionFlagsBits 
+    ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType 
 } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setup-creator-apply')
-        .setDescription('Send the public Creator Partnership application panel to this channel')
+        .setDescription('Automatically setup the Creator Partnership category and application panel')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
+        await interaction.deferReply({ flags: 64 });
+        const guild = interaction.guild;
+
+        // 1. Find or create the Category
+        let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.toUpperCase() === 'PARTNERSHIPS');
+        if (!category) {
+            category = await guild.channels.create({
+                name: 'PARTNERSHIPS',
+                type: ChannelType.GuildCategory,
+            });
+        }
+
+        // 2. Find or create the Application Channel
+        let applyChannel = guild.channels.cache.find(c => c.name === 'apply-partnership' && c.parentId === category.id);
+        if (!applyChannel) {
+            applyChannel = await guild.channels.create({
+                name: 'apply-partnership',
+                type: ChannelType.GuildText,
+                parent: category.id,
+                topic: 'Submit your YouTube/Creator partnership applications here!',
+                permissionOverwrites: [
+                    { id: guild.id, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] }
+                ]
+            });
+        }
+
         const embed = new EmbedBuilder()
             .setColor('#EAB308')
             .setTitle('🤝 Partner with DenClient')
@@ -56,10 +82,10 @@ module.exports = {
                 .setLabel('Learn More')
                 .setEmoji('🌐')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://discord.gg/denclient') // Update this URL if needed
+                .setURL('https://discord.gg/denclient')
         );
 
-        await interaction.channel.send({ embeds: [embed], components: [row] });
-        await interaction.reply({ content: '✅ Creator application panel has been posted!', flags: 64 });
+        await applyChannel.send({ embeds: [embed], components: [row] });
+        await interaction.editReply({ content: `✅ **Setup Complete!**\n> Category: **${category.name}**\n> Channel: ${applyChannel}` });
     }
 };
