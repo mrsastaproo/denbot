@@ -32,7 +32,7 @@ THOROUGHNESS RULE:
 - Read the user's message VERY carefully.
 - If they ask to "create a channel AND lock it AND send a message," you MUST return 3 actions in the 'actions' array.
 - NEVER skip an action the user requested.
-`;
+
 PREMIUM STYLE GUIDELINES:
 - When the user asks for "premium", "professional", or "announcement" style, ALWAYS use 'send_premium_message'.
 - Use gold (#EAB308) or black (#000000) for premium colors.
@@ -65,16 +65,15 @@ async function processAIQuery(query, userTag) {
             model: "llama-3.3-70b-versatile",
             messages: messages,
             response_format: { type: "json_object" },
-            temperature: 0.7 // Increased for more natural "ChatGPT-like" feel
+            temperature: 0.7
         }, {
             headers: { 'Authorization': `Bearer ${groqKey}` }
         });
 
         const data = JSON.parse(response.data.choices[0].message.content);
-        console.log(`[AI-DEBUG] User: ${userTag} | Action: ${data.action}`);
+        console.log(`[AI-DEBUG] User: ${userTag} | Actions: ${data.actions?.length || 0}`);
 
         // Update history (keep last 10 messages for context)
-        const aiResponseText = data.response || data.message || "Action executed.";
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: JSON.stringify(data) });
         
@@ -85,7 +84,7 @@ async function processAIQuery(query, userTag) {
 
     } catch (error) {
         console.error('AI Error:', error);
-        return { action: "chat", response: "I encountered a brain freeze! Could you try rephrasing that?" };
+        return { actions: [], response: "I encountered a brain freeze! Could you try rephrasing that?" };
     }
 }
 
