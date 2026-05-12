@@ -2,26 +2,31 @@ const axios = require('axios');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
-You are Den-AI, the smart assistant for DenClient Discord Bot. 
-Your job is to understand the user's intent (in English or Hinglish) and perform actions.
+You are Den-AI, the elite administrative brain of DenClient. 
+Your personality: Ultra-professional, premium, and world-class. You speak in a mix of Hindi and English (Hinglish) but keep the tone sophisticated.
 
-If the user wants you to do something, respond with a JSON block like this:
+CORE RULES:
+1. Only perform actions EXPLICITLY requested by the user. 
+2. If the user wants a channel, create it with a premium aesthetic (e.g., using symbols like │, 💎, 🛡️).
+3. Do NOT send command lists unless specifically asked for "help" or "commands".
+4. Every response must feel high-end.
+
+RESPONSE FORMAT (JSON ONLY):
 {
   "action": "ACTION_NAME",
   "parameters": { ... },
-  "message": "A friendly response to the user in their language (Hinglish/English)"
+  "message": "A sophisticated premium response to the user"
 }
 
-Supported Actions:
-1. create_private_channel: { "name": "channel-name", "reason": "why" } - Creates a channel only visible to the owner.
-2. list_commands: {} - Lists all bot commands and their uses.
-3. send_announcement: { "text": "message", "channel": "name" } - Sends a premium announcement.
-4. chat: { "response": "text" } - Just chatting with the user.
+Actions:
+- create_private_channel: { "name": "channel-name", "topic": "premium-topic" }
+- list_commands: {}
+- send_announcement: { "text": "message", "channel": "name" }
+- chat: { "response": "text" }
 
-Rules:
-- If the user says "create a channel for commands help for me only", use create_private_channel and list_commands.
-- Always be professional and "World Class".
-- Use Hinglish if the user uses it.
+Example:
+User: "create a private channel for me only named admin console"
+Response: { "action": "create_private_channel", "parameters": { "name": "│💎-admin-console", "topic": "Elite Administrative Control Center" }, "message": "As you wish. Your premium administrative console has been established." }
 `;
 
 async function processAIQuery(query, userTag) {
@@ -29,7 +34,6 @@ async function processAIQuery(query, userTag) {
         const groqKey = process.env.GROQ_API_KEY;
         const geminiKey = process.env.GEMINI_API_KEY;
 
-        // PREFER GROQ IF AVAILABLE (Much faster and more reliable for Railway)
         if (groqKey) {
             const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
                 model: "llama-3.3-70b-versatile",
@@ -37,36 +41,27 @@ async function processAIQuery(query, userTag) {
                     { role: "system", content: SYSTEM_PROMPT },
                     { role: "user", content: `User (${userTag}): ${query}` }
                 ],
-                response_format: { type: "json_object" }
+                response_format: { type: "json_object" },
+                temperature: 0.6
             }, {
                 headers: { 'Authorization': `Bearer ${groqKey}` }
             });
 
-            const result = response.data.choices[0].message.content;
-            return JSON.parse(result);
+            return JSON.parse(response.data.choices[0].message.content);
         }
 
-        // FALLBACK TO GEMINI
-        if (!geminiKey) throw new Error("No AI API keys found!");
-
+        // Fallback to Gemini with better URL
+        if (!geminiKey) throw new Error("No API key configured.");
         const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-        
         const response = await axios.post(url, {
-            contents: [{
-                parts: [{ text: `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}` }]
-            }]
+            contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}` }] }]
         });
-
         const text = response.data.candidates[0].content.parts[0].text;
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         return jsonMatch ? JSON.parse(jsonMatch[0]) : { action: "chat", message: text };
 
     } catch (error) {
-        console.error("AI Error:", error.message);
-        return { 
-            action: "chat", 
-            message: `🧠 **AI Error:** \`${error.message.slice(0, 100)}\`\n> Please ensure your **GROQ_API_KEY** or **GEMINI_API_KEY** is set correctly in Railway.` 
-        };
+        return { action: "chat", message: `🛑 **Elite AI Error:** \`${error.message}\`` };
     }
 }
 

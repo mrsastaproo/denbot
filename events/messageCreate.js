@@ -87,26 +87,26 @@ module.exports = {
             if (result.action === 'create_private_channel') {
                 try {
                     const newChannel = await message.guild.channels.create({
-                        name: result.parameters.name || 'ai-private-help',
+                        name: result.parameters.name || '│💎-den-console',
                         type: ChannelType.GuildText,
-                        topic: result.parameters.reason || 'Private AI Assisted Channel',
+                        topic: result.parameters.topic || 'Elite Administrative Control Center',
                         permissionOverwrites: [
                             { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                             { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                         ]
                     });
 
-                    await message.reply(`${result.message || '✅ Channel created!'} Check ${newChannel}`);
+                    await message.reply(`${result.message || '✅ Your premium console has been established.'} Check ${newChannel}`);
                     
-                    const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
-                    const helpEmbed = new EmbedBuilder()
+                    const welcomeEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
-                        .setTitle('🎬 DenClient | All Commands & Features')
-                        .setDescription(commandsList)
-                        .setFooter({ text: 'AI Assisted Management Console' })
+                        .setTitle('🛡️ DenClient | Elite Console')
+                        .setDescription(`Welcome, **${message.author.username}**. This private channel has been established for your exclusive use.\n\nI am at your service. Tell me what you need.`)
+                        .setThumbnail(message.author.displayAvatarURL())
+                        .setFooter({ text: 'Powered by Den-AI v2.0' })
                         .setTimestamp();
                     
-                    await newChannel.send({ content: `Welcome ${message.author}! Here are the commands you requested:`, embeds: [helpEmbed] });
+                    await newChannel.send({ embeds: [welcomeEmbed] });
 
                 } catch (error) {
                     console.error(error);
