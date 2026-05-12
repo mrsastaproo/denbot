@@ -28,8 +28,8 @@ Rules:
 
 async function processAIQuery(query, userTag) {
     try {
-        // Using gemini-1.5-flash as it is generally the most available
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Switching to gemini-pro as it's the most stable across regions
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         const prompt = `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}`;
         
         const result = await model.generateContent(prompt);
