@@ -35,7 +35,7 @@ module.exports = {
         const normalizedContent = content.replace(/\s+/g, ''); // Remove ALL whitespace for bypass detection
 
         // ---- OWNER SHORTCUT: den$close ----
-        if (content === 'den$close' && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID)) && (message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('apply-'))) {
+        if (content === 'den$close' && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID)) && (message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('apply-') || message.channel.name.includes('deal-'))) {
             await message.delete().catch(() => {});
             
             const ticketData = client.tickets.get(message.channel.id);

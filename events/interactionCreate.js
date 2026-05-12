@@ -1,4 +1,4 @@
-const { 
+﻿const { 
     ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, 
     ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle 
 } = require('discord.js');
@@ -9,8 +9,12 @@ module.exports = {
     async execute(interaction, client) {
         if (interaction.isChatInputCommand()) {
             const OWNER_ID = '1496085984297877514';
-            if (interaction.user.id !== OWNER_ID) {
-                return interaction.reply({ content: '❌ Access Denied: Only the **Server Owner** can use DenClient commands.', ephemeral: true });
+            const OWNER_ROLE_ID = '1501299141572300912';
+
+            const hasPermission = interaction.user.id === OWNER_ID || interaction.member.roles.cache.has(OWNER_ROLE_ID);
+
+            if (!hasPermission) {
+                return interaction.reply({ content: 'âŒ Access Denied: Only the **Server Owner** or authorized **Management** can use DenClient commands.', ephemeral: true });
             }
 
             const command = client.commands.get(interaction.commandName);
@@ -21,7 +25,7 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (!interaction.replied && !interaction.deferred) {
-                    interaction.reply({ content: '❌ Command error detected.', ephemeral: true });
+                    interaction.reply({ content: 'âŒ Command error detected.', ephemeral: true });
                 }
             }
         } else if (interaction.isButton()) {
@@ -30,7 +34,7 @@ module.exports = {
             // ---- CREATE TICKET ----
             if (customId === 'create_ticket') {
                 const existingChannel = guild.channels.cache.find(c => c.name === `ticket-${user.username.toLowerCase()}`);
-                if (existingChannel) return interaction.reply({ content: `⚠️ Active session already exists: ${existingChannel}`, ephemeral: true });
+                if (existingChannel) return interaction.reply({ content: `âš ï¸ Active session already exists: ${existingChannel}`, ephemeral: true });
 
                 try {
                     const categoryId = client.config.ticketCategory;
@@ -50,55 +54,57 @@ module.exports = {
 
                     const welcomeEmbed = new EmbedBuilder()
                         .setColor('#5865F2')
-                        .setTitle('📩 Support Session Initialized')
+                        .setTitle('ðŸ“© Support Session Initialized')
                         .setDescription(`Greetings ${user},\n\nPlease wait for a staff member to claim this ticket. Provide all necessary details below.`)
                         .addFields(
-                            { name: '👤 Requester', value: `${user.tag}`, inline: true },
-                            { name: '🏷️ Status', value: '`Unclaimed`', inline: true }
+                            { name: 'ðŸ‘¤ Requester', value: `${user.tag}`, inline: true },
+                            { name: 'ðŸ·ï¸ Status', value: '`Unclaimed`', inline: true }
                         )
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim Ticket').setEmoji('🙋‍♂️').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim Ticket').setEmoji('ðŸ™‹â€â™‚ï¸').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
                     );
 
                     await newChannel.send({ content: `${user} | <@&${staffRoleId}>`, embeds: [welcomeEmbed], components: [row] });
-                    await interaction.reply({ content: `✅ Ticket created: ${newChannel}`, ephemeral: true });
+                    await interaction.reply({ content: `âœ… Ticket created: ${newChannel}`, ephemeral: true });
 
                     client.tickets.set(newChannel.id, { ownerId: user.id, createdAt: Date.now(), claimedBy: null });
 
                 } catch (error) {
                     console.error(error);
-                    interaction.reply({ content: '❌ Failed to create ticket.', ephemeral: true });
+                    interaction.reply({ content: 'âŒ Failed to create ticket.', ephemeral: true });
                 }
             }
 
             // ---- CLAIM TICKET ----
             if (customId === 'claim_ticket') {
                 const staffRoleId = client.config.staffRole;
-                const isOwner = guild.ownerId === user.id;
+                const ownerRoleId = '1501299141572300912';
+                const isOwner = guild.ownerId === user.id || member.roles.cache.has(ownerRoleId);
+
                 if (!member.roles.cache.has(staffRoleId) && !member.permissions.has('Administrator') && !isOwner) {
-                    return interaction.reply({ content: '❌ Only authorized staff can claim tickets.', ephemeral: true });
+                    return interaction.reply({ content: 'âŒ Only authorized staff or management can claim tickets.', ephemeral: true });
                 }
 
                 const ticketData = client.tickets.get(channel.id);
-                if (ticketData?.claimedBy) return interaction.reply({ content: '❌ This ticket is already claimed.', ephemeral: true });
+                if (ticketData?.claimedBy) return interaction.reply({ content: 'âŒ This ticket is already claimed.', ephemeral: true });
 
                 if (ticketData) ticketData.claimedBy = user.id;
 
                 const originalEmbed = interaction.message.embeds[0];
                 const updatedEmbed = EmbedBuilder.from(originalEmbed)
-                    .spliceFields(1, 1, { name: '🏷️ Status', value: `\`Claimed by ${user.username}\``, inline: true })
+                    .spliceFields(1, 1, { name: 'ðŸ·ï¸ Status', value: `\`Claimed by ${user.username}\``, inline: true })
                     .setColor('#57F287');
 
                 const disabledRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claimed').setEmoji('✅').setStyle(ButtonStyle.Success).setDisabled(true),
-                    new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claimed').setEmoji('âœ…').setStyle(ButtonStyle.Success).setDisabled(true),
+                    new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
                 );
 
                 await interaction.update({ embeds: [updatedEmbed], components: [disabledRow] });
-                await channel.send({ content: `✅ **Ticket has been claimed by ${user}.**` });
+                await channel.send({ content: `âœ… **Ticket has been claimed by ${user}.**` });
             }
 
             // ---- CLOSE TICKET REQUEST (Modal) ----
@@ -122,7 +128,7 @@ module.exports = {
             if (customId === 'apply_staff') {
                 const modal = new ModalBuilder()
                     .setCustomId('staff_app_modal')
-                    .setTitle('🛡️ Staff Recruitment Form');
+                    .setTitle('ðŸ›¡ï¸ Staff Recruitment Form');
 
                 const q1 = new TextInputBuilder().setCustomId('staff_q1').setLabel('Age, Name, and Country').setStyle(TextInputStyle.Short).setRequired(true);
                 const q2 = new TextInputBuilder().setCustomId('staff_q2').setLabel('Previous Experience?').setStyle(TextInputStyle.Paragraph).setRequired(true);
@@ -139,6 +145,110 @@ module.exports = {
                 await interaction.showModal(modal);
             }
 
+            // ---- DEAL REQUIREMENTS BUTTON ----
+            if (customId === 'deal_req_button') {
+                const modal = new ModalBuilder()
+                    .setCustomId('deal_req_modal')
+                    .setTitle('ðŸ“Š Creator Partnership Form');
+
+                const channelInfo = new TextInputBuilder()
+                    .setCustomId('deal_channel')
+                    .setLabel('Channel Name & Link')
+                    .setPlaceholder('e.g. DenClient - youtube.com/@denclient')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const contactInfo = new TextInputBuilder()
+                    .setCustomId('deal_contact')
+                    .setLabel('Email & Discord/Socials')
+                    .setPlaceholder('e.g. business@denclient.team | Discord: den_owner')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const viewStats = new TextInputBuilder()
+                    .setCustomId('deal_stats')
+                    .setLabel('Avg Views & Promised Views')
+                    .setPlaceholder('e.g. Avg: 10k | Promised: 25k+')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const dealPrice = new TextInputBuilder()
+                    .setCustomId('deal_price')
+                    .setLabel('Deal Price & Payment Method')
+                    .setPlaceholder('e.g. $100 via Crypto/PayPal')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const additionalInfo = new TextInputBuilder()
+                    .setCustomId('deal_extra')
+                    .setLabel('Video Topic & Requirements')
+                    .setPlaceholder('What will you cover in the video? Any specific needs?')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(channelInfo),
+                    new ActionRowBuilder().addComponents(contactInfo),
+                    new ActionRowBuilder().addComponents(viewStats),
+                    new ActionRowBuilder().addComponents(dealPrice),
+                    new ActionRowBuilder().addComponents(additionalInfo)
+                );
+
+                await interaction.showModal(modal);
+            }
+
+            // ---- CREATOR APPLY BUTTON (public panel self-apply) ----
+            if (customId === 'creator_apply_button') {
+                const modal = new ModalBuilder()
+                    .setCustomId('creator_apply_modal')
+                    .setTitle('ðŸŽ¬ Creator Application Form');
+
+                const channelInfo = new TextInputBuilder()
+                    .setCustomId('ca_channel')
+                    .setLabel('Channel Name & Link')
+                    .setPlaceholder('e.g. MyChannel - youtube.com/@mychannel')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const contactInfo = new TextInputBuilder()
+                    .setCustomId('ca_contact')
+                    .setLabel('Email & Discord/Social Handle')
+                    .setPlaceholder('e.g. me@gmail.com | Discord: myuser')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const viewStats = new TextInputBuilder()
+                    .setCustomId('ca_stats')
+                    .setLabel('Avg Views & Promised Views for Video')
+                    .setPlaceholder('e.g. Avg: 5k per video | Promised: 10k+')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const dealPrice = new TextInputBuilder()
+                    .setCustomId('ca_price')
+                    .setLabel('Your Proposed Price & Payment Method')
+                    .setPlaceholder('e.g. Free (Barter) or $50 via PayPal/Crypto')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const videoDetails = new TextInputBuilder()
+                    .setCustomId('ca_details')
+                    .setLabel('Video Idea & Special Requirements')
+                    .setPlaceholder('Describe the video concept, topic, and any specific expectations...')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(channelInfo),
+                    new ActionRowBuilder().addComponents(contactInfo),
+                    new ActionRowBuilder().addComponents(viewStats),
+                    new ActionRowBuilder().addComponents(dealPrice),
+                    new ActionRowBuilder().addComponents(videoDetails)
+                );
+
+                await interaction.showModal(modal);
+            }
+
         } else if (interaction.isModalSubmit()) {
             if (interaction.customId === 'staff_app_modal') {
                 const guild = interaction.guild;
@@ -148,7 +258,7 @@ module.exports = {
                 const q3 = interaction.fields.getTextInputValue('staff_q3');
                 const q4 = interaction.fields.getTextInputValue('staff_q4');
 
-                await interaction.reply({ content: '⏳ **Processing your application...**', ephemeral: true });
+                await interaction.reply({ content: 'â³ **Processing your application...**', ephemeral: true });
 
                 try {
                     const categoryId = client.config.staffAppCategory;
@@ -168,29 +278,29 @@ module.exports = {
 
                     const appEmbed = new EmbedBuilder()
                         .setColor('#5865F2')
-                        .setTitle('📝 New Staff Application')
+                        .setTitle('ðŸ“ New Staff Application')
                         .setThumbnail(user.displayAvatarURL())
                         .addFields(
-                            { name: '👤 Applicant', value: `${user.tag} (${user.id})` },
-                            { name: '📌 Age, Name, Country', value: q1 },
-                            { name: '💼 Experience', value: q2 },
-                            { name: '🛠️ Skills', value: q3 },
-                            { name: '🌐 Languages', value: q4 }
+                            { name: 'ðŸ‘¤ Applicant', value: `${user.tag} (${user.id})` },
+                            { name: 'ðŸ“Œ Age, Name, Country', value: q1 },
+                            { name: 'ðŸ’¼ Experience', value: q2 },
+                            { name: 'ðŸ› ï¸ Skills', value: q3 },
+                            { name: 'ðŸŒ Languages', value: q4 }
                         )
                         .setFooter({ text: 'DenClient Recruitment System' })
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim').setEmoji('🙋‍♂️').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close').setEmoji('🔒').setStyle(ButtonStyle.Danger)
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim').setEmoji('ðŸ™‹â€â™‚ï¸').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
                     );
 
                     await newChannel.send({ content: `<@&${staffRoleId}> | New Application from ${user}`, embeds: [appEmbed], components: [row] });
-                    await interaction.editReply({ content: `✅ **Application Submitted!** Your private channel: ${newChannel}` });
+                    await interaction.editReply({ content: `âœ… **Application Submitted!** Your private channel: ${newChannel}` });
 
                 } catch (error) {
                     console.error(error);
-                    await interaction.editReply({ content: '❌ Failed to process application. Contact an administrator.' });
+                    await interaction.editReply({ content: 'âŒ Failed to process application. Contact an administrator.' });
                 }
             } else if (interaction.customId === 'ticket_close_modal') {
                 const reason = interaction.fields.getTextInputValue('close_reason');
@@ -199,7 +309,7 @@ module.exports = {
                 const owner = await client.users.fetch(ticketData?.ownerId).catch(() => ({ tag: 'Unknown' }));
                 const claimer = ticketData?.claimedBy ? await client.users.fetch(ticketData.claimedBy).catch(() => ({ tag: 'None' })) : { tag: 'None' };
 
-                await interaction.reply({ content: '🔒 **Finalizing transcript and closing channel...**' });
+                await interaction.reply({ content: 'ðŸ”’ **Finalizing transcript and closing channel...**' });
 
                 const logChannelId = client.config.ticketLogChannel || client.config.logChannel;
                 if (logChannelId) {
@@ -207,17 +317,17 @@ module.exports = {
                     if (logChannel) {
                         const transcriptEmbed = new EmbedBuilder()
                             .setColor('#ED4245')
-                            .setTitle('📄 Support Ticket Transcript')
+                            .setTitle('ðŸ“„ Support Ticket Transcript')
                             .setThumbnail(owner.displayAvatarURL ? owner.displayAvatarURL() : null)
                             .addFields(
-                                { name: '👤 Requester', value: `${owner.tag || owner.username} (${ticketData?.ownerId || 'N/A'})`, inline: false },
-                                { name: '🙋‍♂️ Claimed By', value: `${claimer.tag || claimer.username || 'None'}`, inline: true },
-                                { name: '🔒 Closed By', value: `${interaction.user.tag}`, inline: true },
-                                { name: '📁 Channel', value: `${channel.name}`, inline: true },
-                                { name: '🕒 Created At', value: `<t:${Math.floor(ticketData?.createdAt / 1000)}:F>`, inline: false },
-                                { name: '📝 Resolution Reason', value: `\`\`\`${reason}\`\`\``, inline: false }
+                                { name: 'ðŸ‘¤ Requester', value: `${owner.tag || owner.username} (${ticketData?.ownerId || 'N/A'})`, inline: false },
+                                { name: 'ðŸ™‹â€â™‚ï¸ Claimed By', value: `${claimer.tag || claimer.username || 'None'}`, inline: true },
+                                { name: 'ðŸ”’ Closed By', value: `${interaction.user.tag}`, inline: true },
+                                { name: 'ðŸ“ Channel', value: `${channel.name}`, inline: true },
+                                { name: 'ðŸ•’ Created At', value: `<t:${Math.floor(ticketData?.createdAt / 1000)}:F>`, inline: false },
+                                { name: 'ðŸ“ Resolution Reason', value: `\`\`\`${reason}\`\`\``, inline: false }
                             )
-                            .setFooter({ text: 'DenClient Support System • Official Transcript' })
+                            .setFooter({ text: 'DenClient Support System â€¢ Official Transcript' })
                             .setTimestamp();
                         
                         await logChannel.send({ embeds: [transcriptEmbed] });
@@ -225,6 +335,100 @@ module.exports = {
                 }
 
                 setTimeout(() => channel.delete().catch(() => {}), 5000);
+            } else if (interaction.customId === 'deal_req_modal') {
+                const channelInfo = interaction.fields.getTextInputValue('deal_channel');
+                const contact = interaction.fields.getTextInputValue('deal_contact');
+                const stats = interaction.fields.getTextInputValue('deal_stats');
+                const price = interaction.fields.getTextInputValue('deal_price');
+                const extra = interaction.fields.getTextInputValue('deal_extra');
+
+                const responseEmbed = new EmbedBuilder()
+                    .setColor('#EAB308')
+                    .setTitle('ðŸš€ New Partnership Proposal')
+                    .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
+                    .setThumbnail(interaction.guild.iconURL())
+                    .setDescription('A creator has just submitted a high-value partnership proposal for review.')
+                    .addFields(
+                        { name: 'ðŸ“º Channel Information', value: `\`\`\`${channelInfo}\`\`\``, inline: false },
+                        { name: 'ðŸ“§ Contact Details', value: `\`${contact}\``, inline: true },
+                        { name: 'ðŸ’° Commercials', value: `\`${price}\``, inline: true },
+                        { name: 'ðŸ“Š Metrics & Reach', value: `\`${stats}\``, inline: false },
+                        { name: 'ðŸ“ Additional Details', value: `\`\`\`${extra}\`\`\``, inline: false }
+                    )
+                    .setFooter({ text: 'DenClient Business Verification â€¢ ID: ' + interaction.user.id.slice(-6).toUpperCase(), iconURL: client.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                await interaction.reply({ 
+                    content: 'âœ¨ **Application Received!** Your professional proposal has been securely logged for management review.', 
+                    embeds: [responseEmbed] 
+                });
+
+                // Optional: Send to logs if configured
+                const logChannelId = client.config.logChannel;
+                if (logChannelId) {
+                    const logChannel = interaction.guild.channels.cache.get(logChannelId);
+                    if (logChannel) {
+                        await logChannel.send({ 
+                            content: `ðŸ”” **New Deal Requirements** from ${interaction.user}`, 
+                            embeds: [responseEmbed] 
+                        });
+                    }
+                }
+            } else if (interaction.customId === 'creator_apply_modal') {
+                const caChannel = interaction.fields.getTextInputValue('ca_channel');
+                const caContact = interaction.fields.getTextInputValue('ca_contact');
+                const caStats = interaction.fields.getTextInputValue('ca_stats');
+                const caPrice = interaction.fields.getTextInputValue('ca_price');
+                const caDetails = interaction.fields.getTextInputValue('ca_details');
+                const user = interaction.user;
+                const guild = interaction.guild;
+                const OWNER_ROLE_ID = '1501299141572300912';
+                const staffRoleId = client.config?.staffRole;
+
+                await interaction.reply({ content: 'Processing your application...', flags: 64 });
+
+                try {
+                    const dealChannel = await guild.channels.create({
+                        name: `deal-${user.username.toLowerCase()}`,
+                        type: ChannelType.GuildText,
+                        topic: `Creator Application | ${user.tag} (${user.id})`,
+                        permissionOverwrites: [
+                            { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                            { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                            { id: OWNER_ROLE_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.ManageMessages] },
+                            ...(staffRoleId && staffRoleId !== 'YOUR_STAFF_ROLE_ID' ? [{ id: staffRoleId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }] : [])
+                        ]
+                    });
+
+                    const appEmbed = new EmbedBuilder()
+                        .setColor('#EAB308')
+                        .setTitle('New Creator Application')
+                        .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
+                        .setThumbnail(user.displayAvatarURL({ size: 256 }))
+                        .setDescription(`${user} applied via the public Creator Partnership panel.`)
+                        .addFields(
+                            { name: 'Channel Info', value: '```' + caChannel + '```', inline: false },
+                            { name: 'Contact', value: '`' + caContact + '`', inline: true },
+                            { name: 'Price', value: '`' + caPrice + '`', inline: true },
+                            { name: 'View Stats', value: '`' + caStats + '`', inline: false },
+                            { name: 'Video Details', value: '```' + caDetails + '```', inline: false }
+                        )
+                        .setFooter({ text: `DenClient Creator Program - App ID: ${user.id.slice(-6).toUpperCase()}`, iconURL: client.user.displayAvatarURL() })
+                        .setTimestamp();
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Accept & Claim').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Reject & Close').setStyle(ButtonStyle.Danger)
+                    );
+
+                    await dealChannel.send({ content: `${user} | <@&${OWNER_ROLE_ID}>`, embeds: [appEmbed], components: [row] });
+                    client.tickets?.set(dealChannel.id, { ownerId: user.id, createdAt: Date.now(), claimedBy: null });
+                    await interaction.editReply({ content: `Application submitted! Our team will review it in ${dealChannel}. We respond in 24-48h.` });
+
+                } catch (error) {
+                    console.error('Creator apply error:', error);
+                    await interaction.editReply({ content: 'Something went wrong. Please contact staff.' });
+                }
             }
         }
     }

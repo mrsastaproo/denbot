@@ -11,17 +11,22 @@ module.exports = {
 
     async execute(interaction, client) {
         const staffRoleId = client.config.staffRole;
+        const OWNER_ROLE_ID = '1501299141572300912';
+        const channelName = interaction.channel.name;
+        const channelTopic = interaction.channel.topic || '';
+
         const isStaff = interaction.member.roles.cache.has(staffRoleId);
         const isAdmin = interaction.member.permissions.has('Administrator');
-        const isOwner = interaction.guild.ownerId === interaction.user.id;
-        const isTicketChannel = interaction.channel.name.startsWith('ticket-');
+        const isOwner = interaction.guild.ownerId === interaction.user.id || interaction.member.roles.cache.has(OWNER_ROLE_ID);
+        const isTicketChannel = channelName.startsWith('ticket-') || channelName.includes('deal-') || channelName.includes('│deal');
+        const isChannelOwner = channelTopic.includes(interaction.user.id);
 
         if (!isTicketChannel) {
-            return interaction.reply({ content: '❌ This command can only be executed within an active ticket channel.', ephemeral: true });
+            return interaction.reply({ content: '❌ This command can only be used inside a ticket or deal channel.', flags: 64 });
         }
 
-        if (!isStaff && !isAdmin && !isOwner && !interaction.channel.topic?.includes(interaction.user.id)) {
-            return interaction.reply({ content: '❌ You do not have the required permissions to close this support ticket.', ephemeral: true });
+        if (!isStaff && !isAdmin && !isOwner && !isChannelOwner) {
+            return interaction.reply({ content: '❌ You do not have permission to close this channel.', flags: 64 });
         }
 
         const reason = interaction.options.getString('reason');
