@@ -169,18 +169,16 @@ module.exports = {
                 } catch (e) { await message.reply('❌ Announcement failed.'); }
             } else if (result.action === 'chat') {
                 await message.reply(result.message || result.response || 'Action processed.');
-            } else {
-                await message.reply('⚠️ **AI Neutral:** No specific action was identified. Please be more direct (e.g., "send message to...")');
-            }
+            } else if (result.action === 'list_commands') {
                 const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
                 const helpEmbed = new EmbedBuilder()
                     .setColor('#EAB308')
                     .setTitle('🎬 Bot Commands List')
                     .setDescription(commandsList)
                     .setTimestamp();
-                await message.reply({ content: result.message, embeds: [helpEmbed] });
+                await message.reply({ content: result.message || 'Here are the available commands:', embeds: [helpEmbed] });
             } else {
-                await message.reply(result.message || result.response || 'I am listening...');
+                await message.reply('⚠️ **AI Neutral:** No specific action was identified. Please be more direct (e.g., "send message to...")');
             }
             return;
         }
