@@ -91,7 +91,7 @@ module.exports = {
 
             // Helper to find channel by ID or Name (Aggressive)
             const findChannel = (input) => {
-                if (!input) return null;
+                if (!input || input.toLowerCase() === 'current' || input.toLowerCase() === 'here') return message.channel;
                 const cleanInput = input.toLowerCase().replace(/[^\w\s]/g, '').trim();
                 return message.guild.channels.cache.get(input) || 
                        message.guild.channels.cache.find(c => c.name.toLowerCase() === cleanInput) ||
@@ -168,7 +168,12 @@ module.exports = {
                     }
                 } catch (e) { await message.reply('❌ Announcement failed.'); }
             } else if (result.action === 'chat') {
-                await message.reply(result.message || result.response || 'Action processed.');
+                const aiResponse = result.response || result.message || result.answer || result.content;
+                if (aiResponse) {
+                    await message.reply(aiResponse);
+                } else {
+                    await message.reply("I'm online and ready to help! What's on your mind?");
+                }
             } else if (result.action === 'list_commands') {
                 const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
                 const helpEmbed = new EmbedBuilder()
@@ -178,7 +183,7 @@ module.exports = {
                     .setTimestamp();
                 await message.reply({ content: result.message || 'Here are the available commands:', embeds: [helpEmbed] });
             } else {
-                await message.reply('⚠️ **AI Neutral:** No specific action was identified. Please be more direct (e.g., "send message to...")');
+                await message.reply('I processed that, but I need more details to take a specific action. You can ask me to "send a message", "create a channel", or just chat!');
             }
             return;
         }
