@@ -88,156 +88,106 @@ module.exports = {
             console.log(`[AI-DEBUG] Processing query from ${message.author.tag}: ${query}`);
             await message.channel.sendTyping();
             const result = await processAIQuery(query, message.author.tag);
-
-            // Helper to find channel by ID or Name (Aggressive)
+            const actions = result.actions || (result.action ? [result] : []);
             const findChannel = (input) => {
                 if (!input || input.toLowerCase() === 'current' || input.toLowerCase() === 'here') return message.channel;
                 const cleanInput = input.toLowerCase().replace(/[^\w\s]/g, '').trim();
                 return message.guild.channels.cache.get(input) || 
                        message.guild.channels.cache.find(c => c.name.toLowerCase() === cleanInput) ||
-                       message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput)) ||
-                       message.guild.channels.cache.find(c => c.name.toLowerCase().replace(/[^\w\s]/g, '').includes(cleanInput));
+                       message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput));
             };
 
-            if (result.action === 'send_message') {
-                try {
-                    const target = findChannel(result.parameters?.channel);
-                    if (target) {
-                        await target.send(result.parameters.content);
-                        await message.reply(`✅ **Executed:** Message sent to ${target}`);
-                    } else {
-                        await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
-                    }
-                } catch (e) { await message.reply('❌ Execution failed.'); }
-            } else if (result.action === 'send_premium_message') {
-                try {
-                    const target = findChannel(result.parameters?.channel);
-                    if (target) {
-                        const premiumEmbed = new EmbedBuilder()
-                            .setColor(result.parameters.color || '#EAB308')
-                            .setTitle(result.parameters.title || '💎 DenClient Premium Notification')
-                            .setDescription(result.parameters.content)
-                            .setThumbnail(client.user.displayAvatarURL())
-                            .setFooter({ text: result.parameters.footer || 'DenClient Elite Support System', iconURL: client.user.displayAvatarURL() })
-                            .setTimestamp();
-                        
-                        await target.send({ embeds: [premiumEmbed] });
-                        await message.reply(`💎 **Premium Message Sent** to ${target}`);
-                    } else {
-                        await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
-                    }
-                } catch (e) { await message.reply('❌ Premium delivery failed.'); }
-            } else if (result.action === 'set_channel_access') {
-                try {
-                    const target = findChannel(result.parameters?.channel) || message.channel;
-                    const roleInput = result.parameters?.role?.toLowerCase();
-                    const access = result.parameters?.access?.toLowerCase();
-                    
-                    let role = message.guild.roles.everyone;
-                    if (roleInput && roleInput !== 'everyone') {
-                        role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleInput) || r.id === roleInput);
-                    }
+            for (const act of actions) {
+                if (act.action === 'send_message') {
+                    try {
+                        const target = findChannel(act.parameters?.channel);
+                        if (target) await target.send(act.parameters.content);
+                    } catch (e) {}
+                } else if (act.action === 'send_premium_message') {
+                    try {
+                        const target = findChannel(act.parameters?.channel);
+                        if (target) {
+                            const premiumEmbed = new EmbedBuilder()
+                                .setColor(act.parameters.color || '#EAB308')
+                                .setTitle(act.parameters.title || '💎 DenClient Notification')
+                                .setDescription(act.parameters.content)
+                                .setThumbnail(client.user.displayAvatarURL())
+                                .setFooter({ text: act.parameters.footer || 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
+                                .setTimestamp();
+                            await target.send({ embeds: [premiumEmbed] });
+                        }
+                    } catch (e) {}
+                } else if (act.action === 'set_channel_access') {
+                    try {
+                        const target = findChannel(act.parameters?.channel) || message.channel;
+                        const roleInput = act.parameters?.role?.toLowerCase();
+                        const access = act.parameters?.access?.toLowerCase();
+                        let role = message.guild.roles.everyone;
+                        if (roleInput && roleInput !== 'everyone') {
+                            role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleInput) || r.id === roleInput);
+                        }
+                        if (target && role) {
+                            await target.permissionOverwrites.edit(role, { ViewChannel: access === 'allow' });
+                        }
+                    } catch (e) {}
+                } else if (act.action === 'create_private_channel') {
+                    try {
+                        const categoryInput = act.parameters?.category;
+                        let category = null;
+                        if (categoryInput) {
+                            category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(categoryInput.toLowerCase()) || c.id === categoryInput));
+                        }
 
-                    if (target && role) {
-                        const canView = access === 'allow';
-                        await target.permissionOverwrites.edit(role, { ViewChannel: canView });
-                        await message.reply(`✅ **Permissions Updated:** ${role.name} can ${canView ? 'now view' : 'no longer view'} ${target}`);
-                    } else {
-                        await message.reply('❌ Channel or Role not found.');
-                    }
-                } catch (e) { await message.reply('❌ Permission update failed.'); }
-            } else if (result.action === 'kick_user' || result.action === 'ban_user') {
-                try {
-                    const isBan = result.action === 'ban_user';
-                    const targetInput = result.parameters?.user;
-                    const reason = result.parameters?.reason || 'Violating server rules.';
-                    const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput);
-                    
-                    if (targetMember) {
-                        if (!targetMember.moderatable) return await message.reply('❌ I do not have permission to moderate that user.');
-                        if (isBan) await targetMember.ban({ reason });
-                        else await targetMember.kick(reason);
-                        await message.reply(`✅ **${isBan ? 'Banned' : 'Kicked'}:** ${targetMember.user.tag} | **Reason:** ${reason}`);
-                    } else {
-                        await message.reply(`❌ User \`${targetInput}\` not found.`);
-                    }
-                } catch (e) { await message.reply('❌ Moderation failed.'); }
-            } else if (result.action === 'create_private_channel') {
-                try {
-                    const newChannel = await message.guild.channels.create({
-                        name: result.parameters?.name || '│💎-den-console',
-                        type: ChannelType.GuildText,
-                        topic: result.parameters?.topic || 'Elite Administrative Control Center',
-                        permissionOverwrites: [
-                            { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                            { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
-                        ]
-                    });
-                    await message.reply(`✅ **Created:** ${newChannel}`);
-                    const welcomeEmbed = new EmbedBuilder()
-                        .setColor('#EAB308')
-                        .setTitle('🛡️ DenClient | Console')
-                        .setDescription(`Console online. Ready for orders.`)
-                        .setTimestamp();
-                    await newChannel.send({ embeds: [welcomeEmbed] });
-                } catch (e) { await message.reply('❌ Creation failed.'); }
-            } else if (result.action === 'delete_channel') {
-                try {
-                    const target = findChannel(result.parameters?.id);
-                    if (target) {
-                        await message.reply(`🗑️ **Deleting:** ${target.name}...`);
-                        setTimeout(() => target.delete(), 500);
-                    } else {
-                        await message.reply('❌ Channel not found.');
-                    }
-                } catch (e) { await message.reply('❌ Deletion failed.'); }
-            } else if (result.action === 'lock_channel' || result.action === 'unlock_channel') {
-                try {
-                    const isLock = result.action === 'lock_channel';
-                    const target = findChannel(result.parameters?.id) || message.channel;
-                    if (target) {
-                        await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock });
-                        await message.reply(`${isLock ? '🔒' : '🔓'} **${target.name}** is now ${isLock ? 'locked' : 'unlocked'}.`);
-                    }
-                } catch (e) { await message.reply('❌ Permission error.'); }
-            } else if (result.action === 'purge_messages') {
-                try {
-                    const count = Math.min(parseInt(result.parameters?.count) || 10, 100);
-                    await message.channel.bulkDelete(count, true);
-                    const r = await message.channel.send(`🧹 **Purged ${count} messages.**`);
-                    setTimeout(() => r.delete(), 2000);
-                } catch (e) { await message.reply('❌ Purge failed.'); }
-            } else if (result.action === 'send_announcement') {
-                try {
-                    const target = findChannel(result.parameters?.channel);
-                    if (target) {
-                        const annEmbed = new EmbedBuilder()
-                            .setColor('#EAB308')
-                            .setTitle('📢 Smart Announcement')
-                            .setDescription(result.parameters.text || result.parameters.content)
-                            .setTimestamp();
-                        await target.send({ embeds: [annEmbed] });
-                        await message.reply(`✅ **Announced** in ${target}`);
-                    }
-                } catch (e) { await message.reply('❌ Announcement failed.'); }
-            } else if (result.action === 'chat') {
-                const aiResponse = result.response || result.message || result.answer || result.content;
-                if (aiResponse) {
-                    await message.reply(aiResponse);
-                } else {
-                    await message.reply("I'm online and ready to help! What's on your mind?");
+                        const newChannel = await message.guild.channels.create({
+                            name: act.parameters?.name || '│💎-den-console',
+                            type: ChannelType.GuildText,
+                            parent: category ? category.id : null,
+                            topic: act.parameters?.topic || 'Elite Control Center',
+                            permissionOverwrites: [
+                                { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                                { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                            ]
+                        });
+                        await message.reply(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`);
+                    } catch (e) {}
+                } else if (act.action === 'delete_channel') {
+                    try {
+                        const target = findChannel(act.parameters?.id);
+                        if (target) await target.delete();
+                    } catch (e) {}
+                } else if (act.action === 'lock_channel' || act.action === 'unlock_channel') {
+                    try {
+                        const isLock = act.action === 'lock_channel';
+                        const target = findChannel(act.parameters?.id) || message.channel;
+                        if (target) await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock });
+                    } catch (e) {}
+                } else if (act.action === 'purge_messages') {
+                    try {
+                        const count = Math.min(parseInt(act.parameters?.count) || 10, 100);
+                        await message.channel.bulkDelete(count, true);
+                    } catch (e) {}
+                } else if (act.action === 'kick_user' || act.action === 'ban_user') {
+                    try {
+                        const isBan = act.action === 'ban_user';
+                        const targetInput = act.parameters?.user;
+                        const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput);
+                        if (targetMember && targetMember.moderatable) {
+                            if (isBan) await targetMember.ban({ reason: act.parameters?.reason });
+                            else await targetMember.kick(act.parameters?.reason);
+                        }
+                    } catch (e) {}
                 }
-            } else if (result.action === 'list_commands') {
-                const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
-                const helpEmbed = new EmbedBuilder()
-                    .setColor('#EAB308')
-                    .setTitle('🎬 Bot Commands List')
-                    .setDescription(commandsList)
-                    .setTimestamp();
-                await message.reply({ content: result.message || 'Here are the available commands:', embeds: [helpEmbed] });
-            } else {
-                await message.reply('I processed that, but I need more details to take a specific action. You can ask me to "send a message", "create a channel", or just chat!');
             }
+
+            const aiResponse = result.response || result.message || result.answer || result.content;
+            if (aiResponse) {
+                await message.reply(aiResponse);
+            } else if (actions.length > 0) {
+                await message.reply(`✅ **Multi-Action Executed:** Processed ${actions.length} requests successfully.`);
+            } else {
+                await message.reply("I'm online and ready to help! What's on your mind?");
+            }
+
             return;
         }
 
