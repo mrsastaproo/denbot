@@ -258,5 +258,37 @@ module.exports = {
                 console.error('Spam Timeout Error:', error);
             }
         }
+        // ---- SMART CONSOLE (AI-LIKE): den-ai: ----
+        if (content.startsWith('den-ai:') && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
+            const query = content.replace('den-ai:', '').trim();
+            
+            // 1. Logic for "announce [text] to [#channel]"
+            if (query.includes('announce') && query.includes('to')) {
+                const parts = query.split('announce')[1].split('to');
+                const text = parts[0].trim();
+                const channelName = parts[1].trim().replace('#', '').replace('<#', '').replace('>', '');
+                const targetChannel = message.guild.channels.cache.get(channelName) || message.guild.channels.cache.find(c => c.name === channelName);
+
+                if (targetChannel) {
+                    const aiEmbed = new EmbedBuilder()
+                        .setColor('#EAB308')
+                        .setTitle('📢 Smart Announcement')
+                        .setDescription(text)
+                        .setAuthor({ name: 'DenClient AI Assistant', iconURL: client.user.displayAvatarURL() })
+                        .setFooter({ text: 'Executed via Smart Console' })
+                        .setTimestamp();
+                    
+                    await targetChannel.send({ embeds: [aiEmbed] });
+                    return message.reply('✅ **Smart Action Executed!** Announcement sent to ' + targetChannel.toString());
+                }
+            }
+
+            // 2. Logic for "chat" or "help"
+            if (query === 'hi' || query === 'hello') {
+                return message.reply('👋 **Hello Owner!** I am your Smart Assistant. You can ask me to `announce [text] to [#channel]` or use `/broadcast` for full customization. More AI features coming soon!');
+            }
+
+            return message.reply('🧠 **Smart Console:** I understood your request but I need more training for that specific action. Try: `den-ai: announce Hello Everyone to #general`');
+        }
     }
 };

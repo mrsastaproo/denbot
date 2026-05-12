@@ -428,6 +428,37 @@ module.exports = {
                     console.error('Creator apply error:', error);
                     await interaction.editReply({ content: '❌ Something went wrong. Please contact staff.' });
                 }
+            } else if (interaction.customId.startsWith('broadcast_modal_')) {
+                const channelId = interaction.customId.replace('broadcast_modal_', '');
+                const targetChannel = interaction.guild.channels.cache.get(channelId);
+                
+                const title = interaction.fields.getTextInputValue('bc_title');
+                const desc = interaction.fields.getTextInputValue('bc_desc');
+                const color = interaction.fields.getTextInputValue('bc_color') || '#EAB308';
+                const image = interaction.fields.getTextInputValue('bc_image');
+                const footer = interaction.fields.getTextInputValue('bc_footer') || 'DenClient • Official Communication';
+
+                if (!targetChannel) return interaction.reply({ content: '❌ Target channel not found.', ephemeral: true });
+
+                const broadcastEmbed = new EmbedBuilder()
+                    .setTitle(title)
+                    .setDescription(desc)
+                    .setColor(color.startsWith('#') ? color : '#EAB308')
+                    .setAuthor({ name: 'DenClient Management', iconURL: interaction.guild.iconURL() })
+                    .setFooter({ text: footer, iconURL: interaction.client.user.displayAvatarURL() })
+                    .setTimestamp();
+
+                if (image && image.startsWith('http')) {
+                    broadcastEmbed.setImage(image);
+                }
+
+                try {
+                    await targetChannel.send({ embeds: [broadcastEmbed] });
+                    await interaction.reply({ content: `✅ **Success!** Premium broadcast has been sent to ${targetChannel}.`, ephemeral: true });
+                } catch (error) {
+                    console.error(error);
+                    await interaction.reply({ content: '❌ Failed to send broadcast. Check my permissions in that channel.', ephemeral: true });
+                }
             }
         }
     }
