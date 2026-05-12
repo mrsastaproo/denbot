@@ -114,10 +114,11 @@ module.exports = {
                         } else if (act.action === 'send_premium_message') {
                             const target = findChannel(act.parameters?.channel);
                             if (target) {
+                                const content = act.parameters.content || act.parameters.text || act.parameters.message || act.parameters.description || 'No description provided.';
                                 const premiumEmbed = new EmbedBuilder()
                                     .setColor(act.parameters.color || '#EAB308')
                                     .setTitle(act.parameters.title || '💎 DenClient Notification')
-                                    .setDescription(act.parameters.content || 'No content provided.')
+                                    .setDescription(content)
                                     .setThumbnail(client.user.displayAvatarURL())
                                     .setFooter({ text: act.parameters.footer || 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
                                     .setTimestamp();
