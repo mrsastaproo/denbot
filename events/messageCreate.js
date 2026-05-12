@@ -213,7 +213,9 @@ module.exports = {
         const userId = message.author.id;
 
         // ---- LANGUAGE POLICY ----
-        const isEnglishOnlyChannel = message.channel.name.toLowerCase().includes('chat-english') && 
+        const ENGLISH_ONLY_IDS = ['1503896954038517840'];
+        const isEnglishOnlyChannel = (ENGLISH_ONLY_IDS.includes(message.channel.id) || 
+                                     (message.channel.name.toLowerCase().includes('english') && message.channel.name.toLowerCase().includes('chat'))) && 
                                    !message.channel.name.includes('ticket-') && 
                                    !message.channel.name.includes('apply-');
 
