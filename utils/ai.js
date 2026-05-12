@@ -1,7 +1,5 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require('axios');
 require('dotenv').config();
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const SYSTEM_PROMPT = `
 You are Den-AI, the smart assistant for DenClient Discord Bot. 
@@ -28,13 +26,22 @@ Rules:
 
 async function processAIQuery(query, userTag) {
     try {
-        // Using the latest 2.0 flash experimental model which is very stable for AI Studio keys
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-        const prompt = `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}`;
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error("GEMINI_API_KEY is missing in environment variables!");
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
         
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const response = await axios.post(url, {
+            contents: [{
+                parts: [{ text: `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}` }]
+            }]
+        });
+
+        if (!response.data || !response.data.candidates) {
+            throw new Error("Invalid response from Gemini API");
+        }
+
+        const text = response.data.candidates[0].content.parts[0].text;
 
         // Extract JSON if present
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -48,15 +55,15 @@ async function processAIQuery(query, userTag) {
 
         return { action: "chat", message: text };
     } catch (error) {
-        console.error("AI Error Details:", error);
-        const errorMsg = error.message || "Unknown AI Error";
+        console.error("AI Error Details:", error.response ? error.response.data : error.message);
         
-        // Detailed error for the user to understand location issues
+        const errorData = error.response ? error.response.data : null;
+        let errorMsg = error.message;
+        if (errorData && errorData.error) errorMsg = errorData.error.message;
+
         let userMsg = `🧠 **AI Error:** \`${errorMsg.slice(0, 150)}\``;
-        if (errorMsg.includes("location") || errorMsg.includes("supported")) {
-            userMsg += "\n> 🌏 **Region Issue:** Your Railway server region is not supported by Google. Please switch to **Singapore** or **US Central** in Railway settings.";
-        } else if (errorMsg.includes("API key")) {
-            userMsg += "\n> 🔑 **Key Issue:** Your GEMINI_API_KEY might be invalid or not activated.";
+        if (errorMsg.toLowerCase().includes("location") || errorMsg.toLowerCase().includes("supported")) {
+            userMsg += "\n> 🌏 **Region Issue:** Google doesn't support your server region. Please try **Singapore** or **US Central** in Railway.";
         }
         
         return { action: "chat", message: userMsg };
