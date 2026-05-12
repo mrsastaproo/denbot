@@ -127,6 +127,25 @@ module.exports = {
                         await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
                     }
                 } catch (e) { await message.reply('❌ Premium delivery failed.'); }
+            } else if (result.action === 'set_channel_access') {
+                try {
+                    const target = findChannel(result.parameters?.channel) || message.channel;
+                    const roleInput = result.parameters?.role?.toLowerCase();
+                    const access = result.parameters?.access?.toLowerCase();
+                    
+                    let role = message.guild.roles.everyone;
+                    if (roleInput && roleInput !== 'everyone') {
+                        role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleInput) || r.id === roleInput);
+                    }
+
+                    if (target && role) {
+                        const canView = access === 'allow';
+                        await target.permissionOverwrites.edit(role, { ViewChannel: canView });
+                        await message.reply(`✅ **Permissions Updated:** ${role.name} can ${canView ? 'now view' : 'no longer view'} ${target}`);
+                    } else {
+                        await message.reply('❌ Channel or Role not found.');
+                    }
+                } catch (e) { await message.reply('❌ Permission update failed.'); }
             } else if (result.action === 'kick_user' || result.action === 'ban_user') {
                 try {
                     const isBan = result.action === 'ban_user';
