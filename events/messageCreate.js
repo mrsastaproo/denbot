@@ -75,12 +75,17 @@ module.exports = {
 
         // ---- REAL AI SMART CONSOLE (Gemini): den-ai: or . ----
         const isAIPrefix = content.startsWith('den-ai:') || content.startsWith('.');
-        if (isAIPrefix && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
+        if (isAIPrefix) {
+            // Relaxed check for debugging: Only owner or if role exists
+            const isOwner = member.id === message.guild.ownerId || (OWNER_ROLE_ID && member.roles.cache.has(OWNER_ROLE_ID));
+            if (!isOwner) return;
+
             const query = content.replace('den-ai:', '').replace('.', '').trim();
             const { processAIQuery } = require('../utils/ai');
 
             if (!query) return;
 
+            console.log(`[AI-DEBUG] Processing query from ${message.author.tag}: ${query}`);
             await message.channel.sendTyping();
             const result = await processAIQuery(query, message.author.tag);
 
