@@ -253,42 +253,68 @@ module.exports = {
                     footer: 'DenClient Security Protocol • Automated Enforcement'
                 });
 
-                spamMap.delete(userId);
-            } catch (error) {
-                console.error('Spam Timeout Error:', error);
-            }
-        }
-        // ---- SMART CONSOLE (AI-LIKE): den-ai: ----
+                     // ---- REAL AI SMART CONSOLE (Gemini): den-ai: ----
         if (content.startsWith('den-ai:') && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
             const query = content.replace('den-ai:', '').trim();
-            
-            // 1. Logic for "announce [text] to [#channel]"
-            if (query.includes('announce') && query.includes('to')) {
-                const parts = query.split('announce')[1].split('to');
-                const text = parts[0].trim();
-                const channelName = parts[1].trim().replace('#', '').replace('<#', '').replace('>', '');
-                const targetChannel = message.guild.channels.cache.get(channelName) || message.guild.channels.cache.find(c => c.name === channelName);
+            const { processAIQuery } = require('../utils/ai');
+            const { ChannelType, PermissionsBitField } = require('discord.js');
 
-                if (targetChannel) {
-                    const aiEmbed = new EmbedBuilder()
+            await message.channel.sendTyping();
+            const result = await processAIQuery(query, message.author.tag);
+
+            if (result.action === 'create_private_channel') {
+                try {
+                    const newChannel = await message.guild.channels.create({
+                        name: result.parameters.name || 'ai-private-help',
+                        type: ChannelType.GuildText,
+                        topic: result.parameters.reason || 'Private AI Assisted Channel',
+                        permissionOverwrites: [
+                            { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                            { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                        ]
+                    });
+
+                    await message.reply(`${result.message || '✅ Channel created!'} Check ${newChannel}`);
+                    
+                    // If they also wanted help, send commands there
+                    const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
+                    const helpEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
-                        .setTitle('📢 Smart Announcement')
-                        .setDescription(text)
-                        .setAuthor({ name: 'DenClient AI Assistant', iconURL: client.user.displayAvatarURL() })
-                        .setFooter({ text: 'Executed via Smart Console' })
+                        .setTitle('🎬 DenClient | All Commands & Features')
+                        .setDescription(commandsList)
+                        .setFooter({ text: 'AI Assisted Management Console' })
                         .setTimestamp();
                     
-                    await targetChannel.send({ embeds: [aiEmbed] });
-                    return message.reply('✅ **Smart Action Executed!** Announcement sent to ' + targetChannel.toString());
+                    await newChannel.send({ content: `Welcome ${message.author}! Here are the commands you requested:`, embeds: [helpEmbed] });
+
+                } catch (error) {
+                    console.error(error);
+                    await message.reply('❌ Failed to create channel. Check my permissions.');
                 }
+            } else if (result.action === 'list_commands') {
+                const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
+                const helpEmbed = new EmbedBuilder()
+                    .setColor('#EAB308')
+                    .setTitle('🎬 Bot Commands List')
+                    .setDescription(commandsList)
+                    .setTimestamp();
+                await message.reply({ content: result.message, embeds: [helpEmbed] });
+            } else if (result.action === 'send_announcement') {
+                const channelName = result.parameters.channel.replace('#', '');
+                const targetChannel = message.guild.channels.cache.find(c => c.name === channelName) || message.guild.channels.cache.get(channelName);
+                if (targetChannel) {
+                    const annEmbed = new EmbedBuilder()
+                        .setColor('#EAB308')
+                        .setTitle('📢 Smart Announcement')
+                        .setDescription(result.parameters.text)
+                        .setTimestamp();
+                    await targetChannel.send({ embeds: [annEmbed] });
+                    await message.reply('✅ Sent!');
+                }
+            } else {
+                // Just chat
+                await message.reply(result.message || result.response || 'I am listening...');
             }
-
-            // 2. Logic for "chat" or "help"
-            if (query === 'hi' || query === 'hello') {
-                return message.reply('👋 **Hello Owner!** I am your Smart Assistant. You can ask me to `announce [text] to [#channel]` or use `/broadcast` for full customization. More AI features coming soon!');
-            }
-
-            return message.reply('🧠 **Smart Console:** I understood your request but I need more training for that specific action. Try: `den-ai: announce Hello Everyone to #general`');
         }
     }
 };
