@@ -13,23 +13,25 @@ module.exports = {
         await interaction.deferReply({ flags: 64 });
         const guild = interaction.guild;
 
-        // 1. Find or create the Category
-        let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name.toUpperCase() === 'PARTNERSHIPS');
+        // 1. Find or create the Category with a premium look
+        const categoryName = '🤝│PARTNERSHIPS';
+        let category = guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && c.name === categoryName);
         if (!category) {
             category = await guild.channels.create({
-                name: 'PARTNERSHIPS',
+                name: categoryName,
                 type: ChannelType.GuildCategory,
             });
         }
 
-        // 2. Find or create the Application Channel
-        let applyChannel = guild.channels.cache.find(c => c.name === 'apply-partnership' && c.parentId === category.id);
+        // 2. Find or create the Application Channel with a premium look
+        const channelName = '🎬│partnership-apply';
+        let applyChannel = guild.channels.cache.find(c => c.name === channelName && c.parentId === category.id);
         if (!applyChannel) {
             applyChannel = await guild.channels.create({
-                name: 'apply-partnership',
+                name: channelName,
                 type: ChannelType.GuildText,
                 parent: category.id,
-                topic: 'Submit your YouTube/Creator partnership applications here!',
+                topic: '✨ Submit your YouTube/Creator partnership applications here!',
                 permissionOverwrites: [
                     { id: guild.id, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] }
                 ]
@@ -82,7 +84,7 @@ module.exports = {
                 .setLabel('Learn More')
                 .setEmoji('🌐')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://discord.gg/denclient')
+                .setURL('https://denclient.in')
         );
 
         await applyChannel.send({ embeds: [embed], components: [row] });
