@@ -84,56 +84,59 @@ module.exports = {
             await message.channel.sendTyping();
             const result = await processAIQuery(query, message.author.tag);
 
-            // Helper to find channel by ID or Name (Fuzzy)
+            // Helper to find channel by ID or Name (Aggressive)
             const findChannel = (input) => {
                 if (!input) return null;
                 const cleanInput = input.toLowerCase().replace(/[^\w\s]/g, '').trim();
                 return message.guild.channels.cache.get(input) || 
-                       message.guild.channels.cache.find(c => c.name.toLowerCase().replace(/[^\w\s]/g, '').includes(cleanInput)) ||
-                       message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput));
+                       message.guild.channels.cache.find(c => c.name.toLowerCase() === cleanInput) ||
+                       message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput)) ||
+                       message.guild.channels.cache.find(c => c.name.toLowerCase().replace(/[^\w\s]/g, '').includes(cleanInput));
             };
 
             if (result.action === 'send_message') {
                 try {
-                    const target = findChannel(result.parameters.channel);
+                    const target = findChannel(result.parameters?.channel);
                     if (target) {
                         await target.send(result.parameters.content);
-                        await message.reply(`✅ **Action Executed:** Message sent to ${target}`);
+                        await message.reply(`✅ **Executed:** Message sent to ${target}`);
                     } else {
-                        await message.reply(`❌ Could not locate channel: \`${result.parameters.channel}\``);
+                        await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
                     }
                 } catch (e) { await message.reply('❌ Execution failed.'); }
             } else if (result.action === 'create_private_channel') {
                 try {
                     const newChannel = await message.guild.channels.create({
-                        name: result.parameters.name || '│💎-den-console',
+                        name: result.parameters?.name || '│💎-den-console',
                         type: ChannelType.GuildText,
-                        topic: result.parameters.topic || 'Elite Administrative Control Center',
+                        topic: result.parameters?.topic || 'Elite Administrative Control Center',
                         permissionOverwrites: [
                             { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                             { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                         ]
                     });
-                    await message.reply(`${result.message || '✅ Console established.'} Check ${newChannel}`);
+                    await message.reply(`✅ **Created:** ${newChannel}`);
                     const welcomeEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
-                        .setTitle('🛡️ DenClient | Elite Console')
-                        .setDescription(`Welcome **${message.author.username}**. Action engine v3.0 online.`)
+                        .setTitle('🛡️ DenClient | Console')
+                        .setDescription(`Console online. Ready for orders.`)
                         .setTimestamp();
                     await newChannel.send({ embeds: [welcomeEmbed] });
                 } catch (e) { await message.reply('❌ Creation failed.'); }
             } else if (result.action === 'delete_channel') {
                 try {
-                    const target = findChannel(result.parameters.id);
+                    const target = findChannel(result.parameters?.id);
                     if (target) {
                         await message.reply(`🗑️ **Deleting:** ${target.name}...`);
-                        setTimeout(() => target.delete(), 1000);
+                        setTimeout(() => target.delete(), 500);
+                    } else {
+                        await message.reply('❌ Channel not found.');
                     }
                 } catch (e) { await message.reply('❌ Deletion failed.'); }
             } else if (result.action === 'lock_channel' || result.action === 'unlock_channel') {
                 try {
                     const isLock = result.action === 'lock_channel';
-                    const target = findChannel(result.parameters.id) || message.channel;
+                    const target = findChannel(result.parameters?.id) || message.channel;
                     if (target) {
                         await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock });
                         await message.reply(`${isLock ? '🔒' : '🔓'} **${target.name}** is now ${isLock ? 'locked' : 'unlocked'}.`);
@@ -141,14 +144,14 @@ module.exports = {
                 } catch (e) { await message.reply('❌ Permission error.'); }
             } else if (result.action === 'purge_messages') {
                 try {
-                    const count = Math.min(parseInt(result.parameters.count) || 10, 100);
+                    const count = Math.min(parseInt(result.parameters?.count) || 10, 100);
                     await message.channel.bulkDelete(count, true);
                     const r = await message.channel.send(`🧹 **Purged ${count} messages.**`);
-                    setTimeout(() => r.delete(), 3000);
+                    setTimeout(() => r.delete(), 2000);
                 } catch (e) { await message.reply('❌ Purge failed.'); }
             } else if (result.action === 'send_announcement') {
                 try {
-                    const target = findChannel(result.parameters.channel);
+                    const target = findChannel(result.parameters?.channel);
                     if (target) {
                         const annEmbed = new EmbedBuilder()
                             .setColor('#EAB308')
@@ -156,10 +159,14 @@ module.exports = {
                             .setDescription(result.parameters.text)
                             .setTimestamp();
                         await target.send({ embeds: [annEmbed] });
-                        await message.reply(`✅ **Announcement Broadcasted** to ${target}`);
+                        await message.reply(`✅ **Announced** in ${target}`);
                     }
                 } catch (e) { await message.reply('❌ Announcement failed.'); }
-            } else if (result.action === 'list_commands') {
+            } else if (result.action === 'chat') {
+                await message.reply(result.message || result.response || 'Action processed.');
+            } else {
+                await message.reply('⚠️ **AI Neutral:** No specific action was identified. Please be more direct (e.g., "send message to...")');
+            }
                 const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
                 const helpEmbed = new EmbedBuilder()
                     .setColor('#EAB308')
