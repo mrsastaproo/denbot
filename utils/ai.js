@@ -28,6 +28,7 @@ Rules:
 
 async function processAIQuery(query, userTag) {
     try {
+        // Using gemini-1.5-flash as it is generally the most available
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `${SYSTEM_PROMPT}\n\nUser (${userTag}): ${query}`;
         
@@ -38,13 +39,22 @@ async function processAIQuery(query, userTag) {
         // Extract JSON if present
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                return { action: "chat", message: text };
+            }
         }
 
         return { action: "chat", message: text };
     } catch (error) {
-        console.error("AI Error:", error);
-        return { action: "chat", message: "Sorry, I am having trouble thinking right now. Please try again later!" };
+        console.error("AI Error Details:", error);
+        // Return a more descriptive error for debugging
+        const errorMsg = error.message || "Unknown AI Error";
+        return { 
+            action: "chat", 
+            message: `🧠 **AI Thinking Error:** \`${errorMsg.slice(0, 100)}\`\n> Please check if your API Key is valid and Railway region supports Gemini.` 
+        };
     }
 }
 
