@@ -107,10 +107,47 @@ module.exports = {
                         .setTimestamp();
                     
                     await newChannel.send({ embeds: [welcomeEmbed] });
-
                 } catch (error) {
                     console.error(error);
                     await message.reply('❌ Failed to create channel. Check my permissions.');
+                }
+            } else if (result.action === 'delete_channel') {
+                try {
+                    const targetId = result.parameters.id;
+                    const channelToDelete = targetId === 'current' ? message.channel : (message.guild.channels.cache.get(targetId) || message.guild.channels.cache.find(c => c.name.includes(targetId)));
+                    
+                    if (channelToDelete) {
+                        await message.reply(`🗑️ **Executing Deletion:** ${channelToDelete.name}...`);
+                        setTimeout(() => channelToDelete.delete(), 2000);
+                    } else {
+                        await message.reply('❌ Could not find that channel.');
+                    }
+                } catch (error) {
+                    await message.reply('❌ Error deleting channel: ' + error.message);
+                }
+            } else if (result.action === 'lock_channel' || result.action === 'unlock_channel') {
+                try {
+                    const isLock = result.action === 'lock_channel';
+                    const targetId = result.parameters.id;
+                    const channelToMod = (targetId === 'current' || !targetId) ? message.channel : (message.guild.channels.cache.get(targetId) || message.guild.channels.cache.find(c => c.name.includes(targetId)));
+                    
+                    if (channelToMod) {
+                        await channelToMod.permissionOverwrites.edit(message.guild.roles.everyone, {
+                            SendMessages: !isLock
+                        });
+                        await message.reply(`${isLock ? '🔒' : '🔓'} **Channel ${isLock ? 'Locked' : 'Unlocked'}:** ${channelToMod.name}`);
+                    }
+                } catch (error) {
+                    await message.reply('❌ Permission error.');
+                }
+            } else if (result.action === 'purge_messages') {
+                try {
+                    const count = Math.min(parseInt(result.parameters.count) || 10, 100);
+                    await message.channel.bulkDelete(count, true);
+                    const reply = await message.channel.send(`🧹 **Purged ${count} messages as requested.**`);
+                    setTimeout(() => reply.delete(), 3000);
+                } catch (error) {
+                    await message.reply('❌ Failed to purge messages.');
                 }
             } else if (result.action === 'list_commands') {
                 const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
