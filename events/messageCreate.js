@@ -109,6 +109,40 @@ module.exports = {
                         await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
                     }
                 } catch (e) { await message.reply('❌ Execution failed.'); }
+            } else if (result.action === 'send_premium_message') {
+                try {
+                    const target = findChannel(result.parameters?.channel);
+                    if (target) {
+                        const premiumEmbed = new EmbedBuilder()
+                            .setColor(result.parameters.color || '#EAB308')
+                            .setTitle(result.parameters.title || '💎 DenClient Premium Notification')
+                            .setDescription(result.parameters.content)
+                            .setThumbnail(client.user.displayAvatarURL())
+                            .setFooter({ text: result.parameters.footer || 'DenClient Elite Support System', iconURL: client.user.displayAvatarURL() })
+                            .setTimestamp();
+                        
+                        await target.send({ embeds: [premiumEmbed] });
+                        await message.reply(`💎 **Premium Message Sent** to ${target}`);
+                    } else {
+                        await message.reply(`❌ Could not find channel: \`${result.parameters?.channel}\``);
+                    }
+                } catch (e) { await message.reply('❌ Premium delivery failed.'); }
+            } else if (result.action === 'kick_user' || result.action === 'ban_user') {
+                try {
+                    const isBan = result.action === 'ban_user';
+                    const targetInput = result.parameters?.user;
+                    const reason = result.parameters?.reason || 'Violating server rules.';
+                    const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput);
+                    
+                    if (targetMember) {
+                        if (!targetMember.moderatable) return await message.reply('❌ I do not have permission to moderate that user.');
+                        if (isBan) await targetMember.ban({ reason });
+                        else await targetMember.kick(reason);
+                        await message.reply(`✅ **${isBan ? 'Banned' : 'Kicked'}:** ${targetMember.user.tag} | **Reason:** ${reason}`);
+                    } else {
+                        await message.reply(`❌ User \`${targetInput}\` not found.`);
+                    }
+                } catch (e) { await message.reply('❌ Moderation failed.'); }
             } else if (result.action === 'create_private_channel') {
                 try {
                     const newChannel = await message.guild.channels.create({
@@ -161,7 +195,7 @@ module.exports = {
                         const annEmbed = new EmbedBuilder()
                             .setColor('#EAB308')
                             .setTitle('📢 Smart Announcement')
-                            .setDescription(result.parameters.text)
+                            .setDescription(result.parameters.text || result.parameters.content)
                             .setTimestamp();
                         await target.send({ embeds: [annEmbed] });
                         await message.reply(`✅ **Announced** in ${target}`);

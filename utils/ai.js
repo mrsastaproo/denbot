@@ -16,18 +16,21 @@ STRICT JSON PROTOCOL:
 - For actions, use the specific formats below.
 
 ACTIONS:
-1. send_message: { "action": "send_message", "parameters": { "channel": "id_or_name", "content": "text" } }
-2. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "name", "topic": "topic" } }
-3. delete_channel: { "action": "delete_channel", "parameters": { "id": "id_or_name" } }
-4. lock_channel: { "action": "lock_channel", "parameters": { "id": "id" } }
-5. unlock_channel: { "action": "unlock_channel", "parameters": { "id": "id" } }
-6. purge_messages: { "action": "purge_messages", "parameters": { "count": number } }
-7. chat: { "action": "chat", "response": "text" }
+1. send_message: { "action": "send_message", "parameters": { "channel": "name", "content": "text" } }
+2. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "main text", "color": "hex_or_name", "footer": "footer text" } }
+3. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "name", "topic": "topic" } }
+4. delete_channel: { "action": "delete_channel", "parameters": { "id": "name" } }
+5. lock_channel: { "action": "lock_channel", "parameters": { "id": "name" } }
+6. unlock_channel: { "action": "unlock_channel", "parameters": { "id": "name" } }
+7. purge_messages: { "action": "purge_messages", "parameters": { "count": number } }
+8. kick_user: { "action": "kick_user", "parameters": { "user": "username_or_id", "reason": "reason" } }
+9. ban_user: { "action": "ban_user", "parameters": { "user": "username_or_id", "reason": "reason" } }
+10. chat: { "action": "chat", "response": "text" }
 
-CONVERSATION STYLE:
-- Be professional yet cool.
-- Use emojis where appropriate.
-- If a user just says "hi" or asks a general question, use the "chat" action with a warm response.
+PREMIUM STYLE GUIDELINES:
+- When the user asks for "premium", "professional", or "announcement" style, ALWAYS use 'send_premium_message'.
+- Use gold (#EAB308) or black (#000000) for premium colors.
+- Make the title catchy and professional.
 `;
 
 const conversationHistory = new Map();
