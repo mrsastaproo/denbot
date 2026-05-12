@@ -73,10 +73,13 @@ module.exports = {
             return;
         }
 
-        // ---- REAL AI SMART CONSOLE (Gemini): den-ai: ----
-        if (content.startsWith('den-ai:') && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
-            const query = content.replace('den-ai:', '').trim();
+        // ---- REAL AI SMART CONSOLE (Gemini): den-ai: or . ----
+        const isAIPrefix = content.startsWith('den-ai:') || content.startsWith('.');
+        if (isAIPrefix && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
+            const query = content.replace('den-ai:', '').replace('.', '').trim();
             const { processAIQuery } = require('../utils/ai');
+
+            if (!query) return;
 
             await message.channel.sendTyping();
             const result = await processAIQuery(query, message.author.tag);
@@ -118,7 +121,7 @@ module.exports = {
                     .setTimestamp();
                 await message.reply({ content: result.message, embeds: [helpEmbed] });
             } else if (result.action === 'send_announcement') {
-                const channelName = result.parameters.channel.replace('#', '');
+                const channelName = result.parameters.channel?.replace('#', '') || 'general';
                 const targetChannel = message.guild.channels.cache.find(c => c.name === channelName) || message.guild.channels.cache.get(channelName);
                 if (targetChannel) {
                     const annEmbed = new EmbedBuilder()
