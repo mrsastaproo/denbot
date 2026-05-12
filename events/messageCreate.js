@@ -1,6 +1,7 @@
 const spamMap = new Map();
 const logger = require('../utils/logger');
 const { EmbedBuilder, ChannelType, PermissionsBitField } = require('discord.js');
+const { processAIQuery } = require('../utils/ai');
 
 const OFFENSIVE_WORDS = [
     'sex', 'fuck', 'fucker', 'fucking', 'porn', 'hentai', 'dick', 'pussy', 'asshole', 'cum', 'slut', 'whore',
@@ -83,56 +84,61 @@ module.exports = {
             if (!query) return;
 
             try {
-                const { processAIQuery } = require('../utils/ai');
                 console.log(`[AI-DEBUG] Processing query from ${message.author.tag}: ${query}`);
                 await message.channel.sendTyping();
                 
                 const result = await processAIQuery(query, message.author.tag);
                 console.log(`[AI-DEBUG] AI Response:`, JSON.stringify(result, null, 2));
                 
+                if (!result) throw new Error('AI returned null result');
+
                 const actions = result.actions || (result.action ? [result] : []);
                 const findChannel = (input) => {
-                    if (!input || input.toLowerCase() === 'current' || input.toLowerCase() === 'here') return message.channel;
-                    const cleanInput = input.toLowerCase().replace(/[^\w\s]/g, '').trim();
+                    if (!input) return message.channel;
+                    const strInput = String(input).toLowerCase();
+                    if (strInput === 'current' || strInput === 'here') return message.channel;
+                    
+                    const cleanInput = strInput.replace(/[^\w\s]/g, '').trim();
                     return message.guild.channels.cache.get(input) || 
                            message.guild.channels.cache.find(c => c.name.toLowerCase() === cleanInput) ||
                            message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput));
                 };
 
                 for (const act of actions) {
+                    if (!act || !act.action) continue;
                     console.log(`[AI-DEBUG] Executing Action: ${act.action}`);
                     try {
                         if (act.action === 'send_message') {
                             const target = findChannel(act.parameters?.channel);
-                            if (target) await target.send(act.parameters.content);
+                            if (target) await target.send(act.parameters.content).catch(e => console.error('Send Error:', e));
                         } else if (act.action === 'send_premium_message') {
                             const target = findChannel(act.parameters?.channel);
                             if (target) {
                                 const premiumEmbed = new EmbedBuilder()
                                     .setColor(act.parameters.color || '#EAB308')
                                     .setTitle(act.parameters.title || '💎 DenClient Notification')
-                                    .setDescription(act.parameters.content)
+                                    .setDescription(act.parameters.content || 'No content provided.')
                                     .setThumbnail(client.user.displayAvatarURL())
                                     .setFooter({ text: act.parameters.footer || 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
                                     .setTimestamp();
-                                await target.send({ embeds: [premiumEmbed] });
+                                await target.send({ embeds: [premiumEmbed] }).catch(e => console.error('Premium Send Error:', e));
                             }
                         } else if (act.action === 'set_channel_access') {
                             const target = findChannel(act.parameters?.channel) || message.channel;
-                            const roleInput = act.parameters?.role?.toLowerCase();
-                            const access = act.parameters?.access?.toLowerCase();
+                            const roleInput = act.parameters?.role ? String(act.parameters.role).toLowerCase() : 'everyone';
+                            const access = act.parameters?.access ? String(act.parameters.access).toLowerCase() : 'deny';
                             let role = message.guild.roles.everyone;
-                            if (roleInput && roleInput !== 'everyone') {
+                            if (roleInput !== 'everyone') {
                                 role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleInput) || r.id === roleInput);
                             }
                             if (target && role) {
-                                await target.permissionOverwrites.edit(role, { ViewChannel: access === 'allow' });
+                                await target.permissionOverwrites.edit(role, { ViewChannel: access === 'allow' }).catch(e => console.error('Perm Error:', e));
                             }
                         } else if (act.action === 'create_private_channel') {
                             const categoryInput = act.parameters?.category;
                             let category = null;
                             if (categoryInput) {
-                                category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(categoryInput.toLowerCase()) || c.id === categoryInput));
+                                category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(String(categoryInput).toLowerCase()) || c.id === categoryInput));
                             }
                             const newChannel = await message.guild.channels.create({
                                 name: act.parameters?.name || '│💎-den-console',
@@ -144,24 +150,24 @@ module.exports = {
                                     { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                                 ]
                             });
-                            await message.channel.send(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`);
+                            await message.channel.send(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
                         } else if (act.action === 'delete_channel') {
                             const target = findChannel(act.parameters?.id);
-                            if (target) await target.delete();
+                            if (target && target.id !== message.channel.id) await target.delete().catch(() => {});
                         } else if (act.action === 'lock_channel' || act.action === 'unlock_channel') {
                             const isLock = act.action === 'lock_channel';
                             const target = findChannel(act.parameters?.id) || message.channel;
-                            if (target) await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock });
+                            if (target) await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock }).catch(() => {});
                         } else if (act.action === 'purge_messages') {
                             const count = Math.min(parseInt(act.parameters?.count) || 10, 100);
-                            await message.channel.bulkDelete(count, true);
+                            await message.channel.bulkDelete(count, true).catch(() => {});
                         } else if (act.action === 'kick_user' || act.action === 'ban_user') {
                             const isBan = act.action === 'ban_user';
-                            const targetInput = act.parameters?.user;
+                            const targetInput = String(act.parameters?.user || '');
                             const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput);
                             if (targetMember && targetMember.moderatable) {
-                                if (isBan) await targetMember.ban({ reason: act.parameters?.reason });
-                                else await targetMember.kick(act.parameters?.reason);
+                                if (isBan) await targetMember.ban({ reason: act.parameters?.reason }).catch(() => {});
+                                else await targetMember.kick(act.parameters?.reason).catch(() => {});
                             }
                         }
                     } catch (actionErr) {
@@ -171,17 +177,15 @@ module.exports = {
 
                 const aiResponse = result.response || result.message || result.answer || result.content;
                 if (aiResponse) {
-                    await message.reply(aiResponse);
+                    await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
                 } else if (actions.length > 0) {
-                    await message.reply(`✅ **Multi-Action Executed:** Processed ${actions.length} requests successfully.`);
-                } else {
-                    await message.reply("I've processed your request. Is there anything else you need?");
+                    await message.reply(`✅ **Multi-Action Executed:** Processed ${actions.length} requests successfully.`).catch(() => {});
                 }
 
                 return;
             } catch (error) {
                 console.error('AI Processing Error:', error);
-                await message.reply("❌ **Error:** I encountered a technical issue while processing that request. Please try again.");
+                await message.reply("❌ **Error:** I encountered a technical issue while processing that request. Please try again or simplify the command.").catch(() => {});
                 return;
             }
         }
