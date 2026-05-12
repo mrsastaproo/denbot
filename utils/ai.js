@@ -49,12 +49,17 @@ async function processAIQuery(query, userTag) {
         return { action: "chat", message: text };
     } catch (error) {
         console.error("AI Error Details:", error);
-        // Return a more descriptive error for debugging
         const errorMsg = error.message || "Unknown AI Error";
-        return { 
-            action: "chat", 
-            message: `🧠 **AI Thinking Error:** \`${errorMsg.slice(0, 100)}\`\n> Please check if your API Key is valid and Railway region supports Gemini.` 
-        };
+        
+        // Detailed error for the user to understand location issues
+        let userMsg = `🧠 **AI Error:** \`${errorMsg.slice(0, 150)}\``;
+        if (errorMsg.includes("location") || errorMsg.includes("supported")) {
+            userMsg += "\n> 🌏 **Region Issue:** Your Railway server region is not supported by Google. Please switch to **Singapore** or **US Central** in Railway settings.";
+        } else if (errorMsg.includes("API key")) {
+            userMsg += "\n> 🔑 **Key Issue:** Your GEMINI_API_KEY might be invalid or not activated.";
+        }
+        
+        return { action: "chat", message: userMsg };
     }
 }
 
