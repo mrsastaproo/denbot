@@ -1,4 +1,4 @@
-﻿const { 
+const { 
     ChannelType, PermissionsBitField, EmbedBuilder, ActionRowBuilder, 
     ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle 
 } = require('discord.js');
@@ -14,7 +14,7 @@ module.exports = {
             const hasPermission = interaction.user.id === OWNER_ID || interaction.member.roles.cache.has(OWNER_ROLE_ID);
 
             if (!hasPermission) {
-                return interaction.reply({ content: 'âŒ Access Denied: Only the **Server Owner** or authorized **Management** can use DenClient commands.', ephemeral: true });
+                return interaction.reply({ content: '❌ Access Denied: Only the **Server Owner** or authorized **Management** can use DenClient commands.', ephemeral: true });
             }
 
             const command = client.commands.get(interaction.commandName);
@@ -25,7 +25,7 @@ module.exports = {
             } catch (error) {
                 console.error(error);
                 if (!interaction.replied && !interaction.deferred) {
-                    interaction.reply({ content: 'âŒ Command error detected.', ephemeral: true });
+                    interaction.reply({ content: '❌ Command error detected.', ephemeral: true });
                 }
             }
         } else if (interaction.isButton()) {
@@ -34,7 +34,7 @@ module.exports = {
             // ---- CREATE TICKET ----
             if (customId === 'create_ticket') {
                 const existingChannel = guild.channels.cache.find(c => c.name === `ticket-${user.username.toLowerCase()}`);
-                if (existingChannel) return interaction.reply({ content: `âš ï¸ Active session already exists: ${existingChannel}`, ephemeral: true });
+                if (existingChannel) return interaction.reply({ content: '⚠️ Active session already exists: ' + existingChannel, ephemeral: true });
 
                 try {
                     const categoryId = client.config.ticketCategory;
@@ -54,27 +54,27 @@ module.exports = {
 
                     const welcomeEmbed = new EmbedBuilder()
                         .setColor('#5865F2')
-                        .setTitle('ðŸ“© Support Session Initialized')
+                        .setTitle('📩 Support Session Initialized')
                         .setDescription(`Greetings ${user},\n\nPlease wait for a staff member to claim this ticket. Provide all necessary details below.`)
                         .addFields(
-                            { name: 'ðŸ‘¤ Requester', value: `${user.tag}`, inline: true },
-                            { name: 'ðŸ·ï¸ Status', value: '`Unclaimed`', inline: true }
+                            { name: '👤 Requester', value: `${user.tag}`, inline: true },
+                            { name: '🏷️ Status', value: '`Unclaimed`', inline: true }
                         )
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim Ticket').setEmoji('ðŸ™‹â€â™‚ï¸').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim Ticket').setEmoji('🙋‍♂️').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
                     );
 
                     await newChannel.send({ content: `${user} | <@&${staffRoleId}>`, embeds: [welcomeEmbed], components: [row] });
-                    await interaction.reply({ content: `âœ… Ticket created: ${newChannel}`, ephemeral: true });
+                    await interaction.reply({ content: '✅ Ticket created: ' + newChannel, ephemeral: true });
 
                     client.tickets.set(newChannel.id, { ownerId: user.id, createdAt: Date.now(), claimedBy: null });
 
                 } catch (error) {
                     console.error(error);
-                    interaction.reply({ content: 'âŒ Failed to create ticket.', ephemeral: true });
+                    interaction.reply({ content: '❌ Failed to create ticket.', ephemeral: true });
                 }
             }
 
@@ -85,26 +85,26 @@ module.exports = {
                 const isOwner = guild.ownerId === user.id || member.roles.cache.has(ownerRoleId);
 
                 if (!member.roles.cache.has(staffRoleId) && !member.permissions.has('Administrator') && !isOwner) {
-                    return interaction.reply({ content: 'âŒ Only authorized staff or management can claim tickets.', ephemeral: true });
+                    return interaction.reply({ content: '❌ Only authorized staff or management can claim tickets.', ephemeral: true });
                 }
 
                 const ticketData = client.tickets.get(channel.id);
-                if (ticketData?.claimedBy) return interaction.reply({ content: 'âŒ This ticket is already claimed.', ephemeral: true });
+                if (ticketData?.claimedBy) return interaction.reply({ content: '❌ This ticket is already claimed.', ephemeral: true });
 
                 if (ticketData) ticketData.claimedBy = user.id;
 
                 const originalEmbed = interaction.message.embeds[0];
                 const updatedEmbed = EmbedBuilder.from(originalEmbed)
-                    .spliceFields(1, 1, { name: 'ðŸ·ï¸ Status', value: `\`Claimed by ${user.username}\``, inline: true })
+                    .spliceFields(1, 1, { name: '🏷️ Status', value: `\`Claimed by ${user.username}\``, inline: true })
                     .setColor('#57F287');
 
                 const disabledRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claimed').setEmoji('âœ…').setStyle(ButtonStyle.Success).setDisabled(true),
-                    new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
+                    new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claimed').setEmoji('✅').setStyle(ButtonStyle.Success).setDisabled(true),
+                    new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
                 );
 
                 await interaction.update({ embeds: [updatedEmbed], components: [disabledRow] });
-                await channel.send({ content: `âœ… **Ticket has been claimed by ${user}.**` });
+                await channel.send({ content: '✅ **Ticket has been claimed by ' + user + '.**' });
             }
 
             // ---- CLOSE TICKET REQUEST (Modal) ----
@@ -128,7 +128,7 @@ module.exports = {
             if (customId === 'apply_staff') {
                 const modal = new ModalBuilder()
                     .setCustomId('staff_app_modal')
-                    .setTitle('ðŸ›¡ï¸ Staff Recruitment Form');
+                    .setTitle('🛡️ Staff Recruitment Form');
 
                 const q1 = new TextInputBuilder().setCustomId('staff_q1').setLabel('Age, Name, and Country').setStyle(TextInputStyle.Short).setRequired(true);
                 const q2 = new TextInputBuilder().setCustomId('staff_q2').setLabel('Previous Experience?').setStyle(TextInputStyle.Paragraph).setRequired(true);
@@ -149,7 +149,7 @@ module.exports = {
             if (customId === 'deal_req_button') {
                 const modal = new ModalBuilder()
                     .setCustomId('deal_req_modal')
-                    .setTitle('ðŸ“Š Creator Partnership Form');
+                    .setTitle('📊 Creator Partnership Form');
 
                 const channelInfo = new TextInputBuilder()
                     .setCustomId('deal_channel')
@@ -201,7 +201,7 @@ module.exports = {
             if (customId === 'creator_apply_button') {
                 const modal = new ModalBuilder()
                     .setCustomId('creator_apply_modal')
-                    .setTitle('ðŸŽ¬ Creator Application Form');
+                    .setTitle('📽️ Creator Application Form');
 
                 const channelInfo = new TextInputBuilder()
                     .setCustomId('ca_channel')
@@ -258,7 +258,7 @@ module.exports = {
                 const q3 = interaction.fields.getTextInputValue('staff_q3');
                 const q4 = interaction.fields.getTextInputValue('staff_q4');
 
-                await interaction.reply({ content: 'â³ **Processing your application...**', ephemeral: true });
+                await interaction.reply({ content: '⏳ **Processing your application...**', ephemeral: true });
 
                 try {
                     const categoryId = client.config.staffAppCategory;
@@ -278,29 +278,29 @@ module.exports = {
 
                     const appEmbed = new EmbedBuilder()
                         .setColor('#5865F2')
-                        .setTitle('ðŸ“ New Staff Application')
+                        .setTitle('📝 New Staff Application')
                         .setThumbnail(user.displayAvatarURL())
                         .addFields(
-                            { name: 'ðŸ‘¤ Applicant', value: `${user.tag} (${user.id})` },
-                            { name: 'ðŸ“Œ Age, Name, Country', value: q1 },
-                            { name: 'ðŸ’¼ Experience', value: q2 },
-                            { name: 'ðŸ› ï¸ Skills', value: q3 },
-                            { name: 'ðŸŒ Languages', value: q4 }
+                            { name: '👤 Applicant', value: `${user.tag} (${user.id})` },
+                            { name: '📌 Age, Name, Country', value: q1 },
+                            { name: '💼 Experience', value: q2 },
+                            { name: '🛠️ Skills', value: q3 },
+                            { name: '🌐 Languages', value: q4 }
                         )
                         .setFooter({ text: 'DenClient Recruitment System' })
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim').setEmoji('ðŸ™‹â€â™‚ï¸').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close').setEmoji('ðŸ”’').setStyle(ButtonStyle.Danger)
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Claim').setEmoji('🙋‍♂️').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Close').setEmoji('🔒').setStyle(ButtonStyle.Danger)
                     );
 
                     await newChannel.send({ content: `<@&${staffRoleId}> | New Application from ${user}`, embeds: [appEmbed], components: [row] });
-                    await interaction.editReply({ content: `âœ… **Application Submitted!** Your private channel: ${newChannel}` });
+                    await interaction.editReply({ content: '✅ **Application Submitted!** Your private channel: ' + newChannel });
 
                 } catch (error) {
                     console.error(error);
-                    await interaction.editReply({ content: 'âŒ Failed to process application. Contact an administrator.' });
+                    await interaction.editReply({ content: '❌ Failed to process application. Contact an administrator.' });
                 }
             } else if (interaction.customId === 'ticket_close_modal') {
                 const reason = interaction.fields.getTextInputValue('close_reason');
@@ -309,7 +309,7 @@ module.exports = {
                 const owner = await client.users.fetch(ticketData?.ownerId).catch(() => ({ tag: 'Unknown' }));
                 const claimer = ticketData?.claimedBy ? await client.users.fetch(ticketData.claimedBy).catch(() => ({ tag: 'None' })) : { tag: 'None' };
 
-                await interaction.reply({ content: 'ðŸ”’ **Finalizing transcript and closing channel...**' });
+                await interaction.reply({ content: '🔒 **Finalizing transcript and closing channel...**' });
 
                 const logChannelId = client.config.ticketLogChannel || client.config.logChannel;
                 if (logChannelId) {
@@ -317,17 +317,17 @@ module.exports = {
                     if (logChannel) {
                         const transcriptEmbed = new EmbedBuilder()
                             .setColor('#ED4245')
-                            .setTitle('ðŸ“„ Support Ticket Transcript')
+                            .setTitle('📄 Support Ticket Transcript')
                             .setThumbnail(owner.displayAvatarURL ? owner.displayAvatarURL() : null)
                             .addFields(
-                                { name: 'ðŸ‘¤ Requester', value: `${owner.tag || owner.username} (${ticketData?.ownerId || 'N/A'})`, inline: false },
-                                { name: 'ðŸ™‹â€â™‚ï¸ Claimed By', value: `${claimer.tag || claimer.username || 'None'}`, inline: true },
-                                { name: 'ðŸ”’ Closed By', value: `${interaction.user.tag}`, inline: true },
-                                { name: 'ðŸ“ Channel', value: `${channel.name}`, inline: true },
-                                { name: 'ðŸ•’ Created At', value: `<t:${Math.floor(ticketData?.createdAt / 1000)}:F>`, inline: false },
-                                { name: 'ðŸ“ Resolution Reason', value: `\`\`\`${reason}\`\`\``, inline: false }
+                                { name: '👤 Requester', value: `${owner.tag || owner.username} (${ticketData?.ownerId || 'N/A'})`, inline: false },
+                                { name: '🙋‍♂️ Claimed By', value: `${claimer.tag || claimer.username || 'None'}`, inline: true },
+                                { name: '🔒 Closed By', value: `${interaction.user.tag}`, inline: true },
+                                { name: '📌 Channel', value: `${channel.name}`, inline: true },
+                                { name: '🕑 Created At', value: `<t:${Math.floor(ticketData?.createdAt / 1000)}:F>`, inline: false },
+                                { name: '📌 Resolution Reason', value: `\`\`\`${reason}\`\`\``, inline: false }
                             )
-                            .setFooter({ text: 'DenClient Support System â€¢ Official Transcript' })
+                            .setFooter({ text: 'DenClient Support System • Official Transcript' })
                             .setTimestamp();
                         
                         await logChannel.send({ embeds: [transcriptEmbed] });
@@ -344,32 +344,31 @@ module.exports = {
 
                 const responseEmbed = new EmbedBuilder()
                     .setColor('#EAB308')
-                    .setTitle('ðŸš€ New Partnership Proposal')
+                    .setTitle('🚀 New Partnership Proposal')
                     .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
                     .setThumbnail(interaction.guild.iconURL())
                     .setDescription('A creator has just submitted a high-value partnership proposal for review.')
                     .addFields(
-                        { name: 'ðŸ“º Channel Information', value: `\`\`\`${channelInfo}\`\`\``, inline: false },
-                        { name: 'ðŸ“§ Contact Details', value: `\`${contact}\``, inline: true },
-                        { name: 'ðŸ’° Commercials', value: `\`${price}\``, inline: true },
-                        { name: 'ðŸ“Š Metrics & Reach', value: `\`${stats}\``, inline: false },
-                        { name: 'ðŸ“ Additional Details', value: `\`\`\`${extra}\`\`\``, inline: false }
+                        { name: '📺 Channel Information', value: `\`\`\`${channelInfo}\`\`\``, inline: false },
+                        { name: '📧 Contact Details', value: `\`${contact}\``, inline: true },
+                        { name: '💰 Commercials', value: `\`${price}\``, inline: true },
+                        { name: '📊 Metrics & Reach', value: `\`${stats}\``, inline: false },
+                        { name: '📝 Additional Details', value: `\`\`\`${extra}\`\`\``, inline: false }
                     )
-                    .setFooter({ text: 'DenClient Business Verification â€¢ ID: ' + interaction.user.id.slice(-6).toUpperCase(), iconURL: client.user.displayAvatarURL() })
+                    .setFooter({ text: 'DenClient Business Verification • ID: ' + interaction.user.id.slice(-6).toUpperCase(), iconURL: client.user.displayAvatarURL() })
                     .setTimestamp();
 
                 await interaction.reply({ 
-                    content: 'âœ¨ **Application Received!** Your professional proposal has been securely logged for management review.', 
+                    content: '✨ **Application Received!** Your professional proposal has been securely logged for management review.', 
                     embeds: [responseEmbed] 
                 });
 
-                // Optional: Send to logs if configured
                 const logChannelId = client.config.logChannel;
                 if (logChannelId) {
                     const logChannel = interaction.guild.channels.cache.get(logChannelId);
                     if (logChannel) {
                         await logChannel.send({ 
-                            content: `ðŸ”” **New Deal Requirements** from ${interaction.user}`, 
+                            content: `🔔 **New Deal Requirements** from ${interaction.user}`, 
                             embeds: [responseEmbed] 
                         });
                     }
@@ -385,7 +384,7 @@ module.exports = {
                 const OWNER_ROLE_ID = '1501299141572300912';
                 const staffRoleId = client.config?.staffRole;
 
-                await interaction.reply({ content: 'Processing your application...', flags: 64 });
+                await interaction.reply({ content: '⏳ **Processing your application...**', flags: 64 });
 
                 try {
                     const dealChannel = await guild.channels.create({
@@ -402,32 +401,32 @@ module.exports = {
 
                     const appEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
-                        .setTitle('New Creator Application')
+                        .setTitle('🚀 New Creator Application')
                         .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
                         .setThumbnail(user.displayAvatarURL({ size: 256 }))
                         .setDescription(`${user} applied via the public Creator Partnership panel.`)
                         .addFields(
-                            { name: 'Channel Info', value: '```' + caChannel + '```', inline: false },
-                            { name: 'Contact', value: '`' + caContact + '`', inline: true },
-                            { name: 'Price', value: '`' + caPrice + '`', inline: true },
-                            { name: 'View Stats', value: '`' + caStats + '`', inline: false },
-                            { name: 'Video Details', value: '```' + caDetails + '```', inline: false }
+                            { name: '📺 Channel Info', value: '```' + caChannel + '```', inline: false },
+                            { name: '📧 Contact', value: '`' + caContact + '`', inline: true },
+                            { name: '💰 Price', value: '`' + caPrice + '`', inline: true },
+                            { name: '📊 View Stats', value: '`' + caStats + '`', inline: false },
+                            { name: '📝 Video Details', value: '```' + caDetails + '```', inline: false }
                         )
                         .setFooter({ text: `DenClient Creator Program - App ID: ${user.id.slice(-6).toUpperCase()}`, iconURL: client.user.displayAvatarURL() })
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Accept & Claim').setStyle(ButtonStyle.Success),
-                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Reject & Close').setStyle(ButtonStyle.Danger)
+                        new ButtonBuilder().setCustomId('claim_ticket').setLabel('Accept & Claim').setStyle(ButtonStyle.Success).setEmoji('✅'),
+                        new ButtonBuilder().setCustomId('close_ticket_request').setLabel('Reject & Close').setStyle(ButtonStyle.Danger).setEmoji('🔒')
                     );
 
                     await dealChannel.send({ content: `${user} | <@&${OWNER_ROLE_ID}>`, embeds: [appEmbed], components: [row] });
                     client.tickets?.set(dealChannel.id, { ownerId: user.id, createdAt: Date.now(), claimedBy: null });
-                    await interaction.editReply({ content: `Application submitted! Our team will review it in ${dealChannel}. We respond in 24-48h.` });
+                    await interaction.editReply({ content: `✅ **Application submitted!** Our team will review it in ${dealChannel}.` });
 
                 } catch (error) {
                     console.error('Creator apply error:', error);
-                    await interaction.editReply({ content: 'Something went wrong. Please contact staff.' });
+                    await interaction.editReply({ content: '❌ Something went wrong. Please contact staff.' });
                 }
             }
         }
