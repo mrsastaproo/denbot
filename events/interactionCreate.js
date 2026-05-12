@@ -201,40 +201,40 @@ module.exports = {
             if (customId === 'creator_apply_button') {
                 const modal = new ModalBuilder()
                     .setCustomId('creator_apply_modal')
-                    .setTitle('📽️ Creator Application Form');
+                    .setTitle('🤝 Partnership Application');
 
                 const channelInfo = new TextInputBuilder()
                     .setCustomId('ca_channel')
-                    .setLabel('Channel Name & Link')
-                    .setPlaceholder('e.g. MyChannel - youtube.com/@mychannel')
+                    .setLabel('Channel Link & Subscribers')
+                    .setPlaceholder('e.g. youtube.com/@mychannel - 10k Subs')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const contactInfo = new TextInputBuilder()
                     .setCustomId('ca_contact')
-                    .setLabel('Email & Discord/Social Handle')
-                    .setPlaceholder('e.g. me@gmail.com | Discord: myuser')
+                    .setLabel('Discord & Email')
+                    .setPlaceholder('e.g. MyUser#1234 | business@email.com')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const viewStats = new TextInputBuilder()
                     .setCustomId('ca_stats')
-                    .setLabel('Avg Views & Promised Views for Video')
-                    .setPlaceholder('e.g. Avg: 5k per video | Promised: 10k+')
+                    .setLabel('Average & Expected Views')
+                    .setPlaceholder('e.g. Avg: 5k | Expected for DenClient: 8k+')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const dealPrice = new TextInputBuilder()
                     .setCustomId('ca_price')
-                    .setLabel('Your Proposed Price & Payment Method')
-                    .setPlaceholder('e.g. Free (Barter) or $50 via PayPal/Crypto')
+                    .setLabel('Proposed Deal (Paid/Barter/Rev-Share)')
+                    .setPlaceholder('What are you looking for in return?')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const videoDetails = new TextInputBuilder()
                     .setCustomId('ca_details')
-                    .setLabel('Video Idea & Special Requirements')
-                    .setPlaceholder('Describe the video concept, topic, and any specific expectations...')
+                    .setLabel('Your Promotion Strategy')
+                    .setPlaceholder('How will you showcase DenClient to your audience?')
                     .setStyle(TextInputStyle.Paragraph)
                     .setRequired(true);
 
@@ -401,18 +401,18 @@ module.exports = {
 
                     const appEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
-                        .setTitle('🚀 New Creator Application')
+                        .setTitle('🤝 New Partnership Application')
                         .setAuthor({ name: user.tag, iconURL: user.displayAvatarURL() })
                         .setThumbnail(user.displayAvatarURL({ size: 256 }))
-                        .setDescription(`${user} applied via the public Creator Partnership panel.`)
+                        .setDescription(`${user} wants to partner with DenClient and promote us!`)
                         .addFields(
-                            { name: '📺 Channel Info', value: '```' + caChannel + '```', inline: false },
-                            { name: '📧 Contact', value: '`' + caContact + '`', inline: true },
-                            { name: '💰 Price', value: '`' + caPrice + '`', inline: true },
-                            { name: '📊 View Stats', value: '`' + caStats + '`', inline: false },
-                            { name: '📝 Video Details', value: '```' + caDetails + '```', inline: false }
+                            { name: '📺 Channel & Subscribers', value: '```' + caChannel + '```', inline: false },
+                            { name: '📧 Contact info', value: '`' + caContact + '`', inline: true },
+                            { name: '💰 Expected Deal', value: '`' + caPrice + '`', inline: true },
+                            { name: '📊 View Statistics', value: '`' + caStats + '`', inline: false },
+                            { name: '📝 Promotion Strategy', value: '```' + caDetails + '```', inline: false }
                         )
-                        .setFooter({ text: `DenClient Creator Program - App ID: ${user.id.slice(-6).toUpperCase()}`, iconURL: client.user.displayAvatarURL() })
+                        .setFooter({ text: `DenClient Partner Program - ID: ${user.id.slice(-6).toUpperCase()}`, iconURL: client.user.displayAvatarURL() })
                         .setTimestamp();
 
                     const row = new ActionRowBuilder().addComponents(
