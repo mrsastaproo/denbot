@@ -1,6 +1,6 @@
 const spamMap = new Map();
 const logger = require('../utils/logger');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ChannelType, PermissionsBitField } = require('discord.js');
 
 const OFFENSIVE_WORDS = [
     'sex', 'fuck', 'fucker', 'fucking', 'porn', 'hentai', 'dick', 'pussy', 'asshole', 'cum', 'slut', 'whore',
@@ -32,7 +32,7 @@ module.exports = {
         if (!member) return;
 
         const content = message.content.toLowerCase();
-        const normalizedContent = content.replace(/\s+/g, ''); // Remove ALL whitespace for bypass detection
+        const normalizedContent = content.replace(/\s+/g, '');
 
         // ---- OWNER SHORTCUT: den$close ----
         if (content === 'den$close' && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID)) && (message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('apply-') || message.channel.name.includes('deal-'))) {
@@ -73,191 +73,10 @@ module.exports = {
             return;
         }
 
-        // ---- WHITELIST: Only Owner Role ----
-        if (member.roles.cache.has(OWNER_ROLE_ID)) return;
-        const isStrictMember = STRICT_ROLES.some(id => member.roles.cache.has(id));
-
-        // ---- DETECTION PATTERNS (Normalized) ----
-        const inviteRegex = /(discord\.gg|discord\.com\/invite)\/[a-zA-Z0-9]+/i;
-        const linkRegex = /(([a-z0-9]+\.)+[a-z]{2,})|(\[dot\])|( \. )/i;
-        const dmRegex = /dm|pm|directmessage/i; // No spaces needed in regex now due to normalization
-        
-        const hasOffensive = OFFENSIVE_WORDS.some(word => normalizedContent.includes(word));
-        const hasPromotion = PROMOTION_PHRASES.some(phrase => normalizedContent.includes(phrase.replace(/\s+/g, '')));
-        
-        // Mass Caps Detection
-        const uppercaseCount = message.content.replace(/[^A-Z]/g, '').length;
-        const totalLetters = message.content.replace(/[^a-zA-Z]/g, '').length;
-        const isMassCaps = totalLetters > 8 && (uppercaseCount / totalLetters) > CAPS_THRESHOLD;
-
-        let violationType = null;
-        if (hasOffensive) violationType = 'Offensive Language';
-        else if (inviteRegex.test(normalizedContent)) violationType = 'Invite Link';
-        else if (linkRegex.test(normalizedContent)) violationType = 'External Link/Bypass';
-        else if (dmRegex.test(normalizedContent)) violationType = 'DM/PM Request (Bypass Detected)';
-        else if (hasPromotion) violationType = 'Promotion/Malicious Content';
-        else if (isMassCaps) violationType = 'Massive Caps (Spam)';
-
-        const userId = message.author.id;
-
-        // ---- LANGUAGE POLICY (STRICTLY #chat-english ONLY) ----
-        // We only enforce English in the main international chat. 
-        // Tickets and other channels are EXEMPT.
-        const isEnglishOnlyChannel = message.channel.name.toLowerCase().includes('chat-english') && 
-                                   !message.channel.name.includes('ticket-') && 
-                                   !message.channel.name.includes('apply-');
-
-        if (!violationType && isEnglishOnlyChannel) {
-            const hindiKeywords = [
-                'hai', 'kya', 'nhi', 'nahi', 'kuch', 'baat', 'sab', 'bhai', 'behen', 'bol', 'rhe', 'rha', 'thi', 'tha', 'kar', 'raha', 'rahe', 
-                'aap', 'tum', 'tera', 'mera', 'iska', 'uska', 'krna', 'kaise', 'h', 'vla', 'mene', 'chal', 'be', 're', 'ga', 'gi', 'se', 'ko',
-                'par', 'toh', 'hi', 'bhi', 'na', 'ne', 'mein', 'hum', 'he', 'hu', 'ho', 'ab', 'tak', 'jab', 'tab', 'ka', 'ki', 'ke'
-            ];
-            const words = content.split(/\s+/);
-            const hasHindi = words.some(w => hindiKeywords.includes(w));
-            
-            if (hasHindi) {
-                const warns = (langWarningMap.get(userId) || 0) + 1;
-                langWarningMap.set(userId, warns);
-
-                if (warns >= 3) {
-                    await member.timeout(3600000, 'Language Policy Violation: 3 Warnings Reached (#chat-english)');
-                    await message.channel.send({ content: `🚫 ${message.author}, you have been timed out for **1 hour** for repeated language policy violations (English Only).` });
-                    langWarningMap.delete(userId);
-                    await message.delete().catch(() => {});
-                    return;
-                } else {
-                    await message.delete().catch(() => {});
-                    const warnMsg = await message.channel.send({ content: `⚠️ ${message.author}, please speak **English only** in this channel. (Warning ${warns}/3)` });
-                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
-                    return;
-                }
-            }
-        }
-
-        // Apply strict moderation for restricted roles OR if it's a link/promo
-        if (violationType) {
-            await message.delete().catch(() => {});
-            
-            try {
-                if (!member.moderatable) {
-                    const botMember = message.guild.members.me;
-                    await logger.log(client, message.guild, {
-                        isMod: true,
-                        isStrict: true,
-                        title: '🚨 Moderation Bypass (Power Issue)',
-                        color: 'Orange',
-                        fields: [
-                            { name: '👤 Target', value: `${message.author.tag}`, inline: true },
-                            { name: '🛡️ Moderatable', value: '❌ No', inline: true },
-                            { name: '📊 Bot Position', value: `\`${botMember.roles.highest.position}\``, inline: true },
-                            { name: '📊 User Position', value: `\`${member.roles.highest.position}\``, inline: true },
-                            { name: '👑 Is Owner', value: `${message.guild.ownerId === member.id ? '✅ Yes' : '❌ No'}`, inline: true }
-                        ],
-                        footer: 'DenClient Security Diagnostic'
-                    });
-                    return;
-                }
-
-                // 10 Minute Timeout
-                await member.timeout(600000, `Highly Strict Moderation x100: ${violationType}`);
-                
-                const warnEmbed = new EmbedBuilder()
-                    .setColor('#ED4245')
-                    .setAuthor({ name: 'Security Protocol: Highly Strict x100', iconURL: client.user.displayAvatarURL() })
-                    .setDescription(`🚫 ${message.author}, you have been timed out for **10 minutes**.\n**Reason:** ${violationType}\n\n*Restricted roles are under x100 strict monitoring.*`)
-                    .setTimestamp();
-
-                await message.channel.send({ embeds: [warnEmbed] }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
-
-                await logger.log(client, message.guild, {
-                    isMod: true,
-                    isStrict: isStrictMember,
-                    title: isStrictMember ? '🚨 Highly Strict x100 Violation' : '🛡️ Moderation Log: Strict Security Violation',
-                    color: '#ED4245',
-                    thumbnail: message.author.displayAvatarURL(),
-                    fields: [
-                        { name: '👤 User', value: `${message.author.tag} (${message.author.id})`, inline: false },
-                        { name: '⚖️ Action', value: '`10 Minute Timeout`', inline: true },
-                        { name: '⚠️ Violation', value: violationType, inline: true },
-                        { name: '📝 Content', value: `\`\`\`${message.content}\`\`\``, inline: false },
-                        { name: '🕒 Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-                    ],
-                    footer: 'DenClient Security Protocol • Automated Enforcement'
-                });
-            } catch (error) {
-                console.error('Timeout Error:', error);
-                
-                // DIAGNOSTIC LOG
-                const botMember = message.guild.members.me;
-                const hasModPerm = botMember.permissions.has('ModerateMembers');
-                const hasAdmin = botMember.permissions.has('Administrator');
-                
-                await logger.log(client, message.guild, {
-                    isMod: true,
-                    isStrict: true,
-                    title: '🚨 Timeout Diagnostic Report',
-                    color: '#FF0000',
-                    fields: [
-                        { name: '❌ Error', value: `\`${error.message}\``, inline: false },
-                        { name: '👤 Target', value: `${message.author.tag}`, inline: true },
-                        { name: '🛡️ Moderatable', value: `${member.moderatable ? '✅ Yes' : '❌ No'}`, inline: true },
-                        { name: '🔑 Mod Permission', value: `${hasModPerm ? '✅ Yes' : '❌ No'}`, inline: true },
-                        { name: '👑 Admin Perm', value: `${hasAdmin ? '✅ Yes' : '❌ No'}`, inline: true },
-                        { name: '📊 Bot Role Position', value: `\`${botMember.roles.highest.position}\``, inline: true },
-                        { name: '📊 User Role Position', value: `\`${member.roles.highest.position}\``, inline: true }
-                    ],
-                    footer: 'DenClient Diagnostic Utility'
-                });
-            }
-            return;
-        }
-
-        // ---- ANTI SPAM SYSTEM ----
-        const now = Date.now();
-        const windowMs = 5000;
-        const maxMessages = 5;
-
-        if (!spamMap.has(userId)) {
-            spamMap.set(userId, []);
-        }
-
-        const timestamps = spamMap.get(userId);
-        const recentMessages = timestamps.filter(t => now - t < windowMs);
-        recentMessages.push(now);
-        spamMap.set(userId, recentMessages);
-
-        if (recentMessages.length >= maxMessages) {
-            try {
-                await member.timeout(600000, 'Anti-Spam Protocol (Highly Strict)');
-                
-                const spamEmbed = new EmbedBuilder()
-                    .setColor('#ED4245')
-                    .setAuthor({ name: 'Security Protocol: Anti-Spam', iconURL: client.user.displayAvatarURL() })
-                    .setDescription(`⚠️ ${message.author} has been timed out for **10 minutes** due to excessive spamming.`)
-                    .setTimestamp();
-
-                await message.channel.send({ embeds: [spamEmbed] });
-                
-                await logger.log(client, message.guild, {
-                    isMod: true,
-                    isStrict: isStrictMember,
-                    title: '🛡️ Moderation Log: Spam Violation',
-                    color: '#ED4245',
-                    thumbnail: message.author.displayAvatarURL(),
-                    fields: [
-                        { name: '👤 User', value: `${message.author.tag}`, inline: true },
-                        { name: '⚖️ Action', value: '`10 Minute Timeout`', inline: true },
-                        { name: '🕒 Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
-                    ],
-                    footer: 'DenClient Security Protocol • Automated Enforcement'
-                });
-
-                     // ---- REAL AI SMART CONSOLE (Gemini): den-ai: ----
+        // ---- REAL AI SMART CONSOLE (Gemini): den-ai: ----
         if (content.startsWith('den-ai:') && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID))) {
             const query = content.replace('den-ai:', '').trim();
             const { processAIQuery } = require('../utils/ai');
-            const { ChannelType, PermissionsBitField } = require('discord.js');
 
             await message.channel.sendTyping();
             const result = await processAIQuery(query, message.author.tag);
@@ -276,7 +95,6 @@ module.exports = {
 
                     await message.reply(`${result.message || '✅ Channel created!'} Check ${newChannel}`);
                     
-                    // If they also wanted help, send commands there
                     const commandsList = client.commands.map(cmd => `**/${cmd.data.name}**: ${cmd.data.description}`).join('\n');
                     const helpEmbed = new EmbedBuilder()
                         .setColor('#EAB308')
@@ -312,9 +130,116 @@ module.exports = {
                     await message.reply('✅ Sent!');
                 }
             } else {
-                // Just chat
                 await message.reply(result.message || result.response || 'I am listening...');
             }
+            return;
+        }
+
+        // ---- WHITELIST: Only Owner Role ----
+        if (member.roles.cache.has(OWNER_ROLE_ID)) return;
+        const isStrictMember = STRICT_ROLES.some(id => member.roles.cache.has(id));
+
+        // ---- DETECTION PATTERNS ----
+        const inviteRegex = /(discord\.gg|discord\.com\/invite)\/[a-zA-Z0-9]+/i;
+        const linkRegex = /(([a-z0-9]+\.)+[a-z]{2,})|(\[dot\])|( \. )/i;
+        const dmRegex = /dm|pm|directmessage/i;
+        
+        const hasOffensive = OFFENSIVE_WORDS.some(word => normalizedContent.includes(word));
+        const hasPromotion = PROMOTION_PHRASES.some(phrase => normalizedContent.includes(phrase.replace(/\s+/g, '')));
+        
+        const uppercaseCount = message.content.replace(/[^A-Z]/g, '').length;
+        const totalLetters = message.content.replace(/[^a-zA-Z]/g, '').length;
+        const isMassCaps = totalLetters > 8 && (uppercaseCount / totalLetters) > CAPS_THRESHOLD;
+
+        let violationType = null;
+        if (hasOffensive) violationType = 'Offensive Language';
+        else if (inviteRegex.test(normalizedContent)) violationType = 'Invite Link';
+        else if (linkRegex.test(normalizedContent)) violationType = 'External Link/Bypass';
+        else if (dmRegex.test(normalizedContent)) violationType = 'DM/PM Request (Bypass Detected)';
+        else if (hasPromotion) violationType = 'Promotion/Malicious Content';
+        else if (isMassCaps) violationType = 'Massive Caps (Spam)';
+
+        const userId = message.author.id;
+
+        // ---- LANGUAGE POLICY ----
+        const isEnglishOnlyChannel = message.channel.name.toLowerCase().includes('chat-english') && 
+                                   !message.channel.name.includes('ticket-') && 
+                                   !message.channel.name.includes('apply-');
+
+        if (!violationType && isEnglishOnlyChannel) {
+            const hindiKeywords = [
+                'hai', 'kya', 'nhi', 'nahi', 'kuch', 'baat', 'sab', 'bhai', 'behen', 'bol', 'rhe', 'rha', 'thi', 'tha', 'kar', 'raha', 'rahe', 
+                'aap', 'tum', 'tera', 'mera', 'iska', 'uska', 'krna', 'kaise', 'h', 'vla', 'mene', 'chal', 'be', 're', 'ga', 'gi', 'se', 'ko',
+                'par', 'toh', 'hi', 'bhi', 'na', 'ne', 'mein', 'hum', 'he', 'hu', 'ho', 'ab', 'tak', 'jab', 'tab', 'ka', 'ki', 'ke'
+            ];
+            const words = content.split(/\s+/);
+            const hasHindi = words.some(w => hindiKeywords.includes(w));
+            
+            if (hasHindi) {
+                const warns = (langWarningMap.get(userId) || 0) + 1;
+                langWarningMap.set(userId, warns);
+
+                if (warns >= 3) {
+                    await member.timeout(3600000, 'Language Policy Violation: 3 Warnings Reached (#chat-english)');
+                    await message.channel.send({ content: `🚫 ${message.author}, you have been timed out for **1 hour** for repeated language policy violations (English Only).` });
+                    langWarningMap.delete(userId);
+                    await message.delete().catch(() => {});
+                    return;
+                } else {
+                    await message.delete().catch(() => {});
+                    const warnMsg = await message.channel.send({ content: `⚠️ ${message.author}, please speak **English only** in this channel. (Warning ${warns}/3)` });
+                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
+                    return;
+                }
+            }
+        }
+
+        if (violationType) {
+            await message.delete().catch(() => {});
+            try {
+                if (!member.moderatable) return;
+                await member.timeout(600000, `Highly Strict Moderation x100: ${violationType}`);
+                const warnEmbed = new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setAuthor({ name: 'Security Protocol: Highly Strict x100', iconURL: client.user.displayAvatarURL() })
+                    .setDescription(`🚫 ${message.author}, you have been timed out for **10 minutes**.\n**Reason:** ${violationType}`)
+                    .setTimestamp();
+                await message.channel.send({ embeds: [warnEmbed] }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
+                await logger.log(client, message.guild, {
+                    isMod: true,
+                    isStrict: isStrictMember,
+                    title: '🛡️ Strict Security Violation',
+                    color: '#ED4245',
+                    fields: [
+                        { name: '👤 User', value: `${message.author.tag}`, inline: true },
+                        { name: '⚖️ Action', value: '`10 Minute Timeout`', inline: true },
+                        { name: '⚠️ Violation', value: violationType, inline: true }
+                    ]
+                });
+            } catch (e) { console.error(e); }
+            return;
+        }
+
+        // ---- ANTI SPAM ----
+        const now = Date.now();
+        const windowMs = 5000;
+        const maxMessages = 5;
+
+        if (!spamMap.has(userId)) spamMap.set(userId, []);
+        const timestamps = spamMap.get(userId);
+        const recentMessages = timestamps.filter(t => now - t < windowMs);
+        recentMessages.push(now);
+        spamMap.set(userId, recentMessages);
+
+        if (recentMessages.length >= maxMessages) {
+            try {
+                await member.timeout(600000, 'Anti-Spam Protocol');
+                const spamEmbed = new EmbedBuilder()
+                    .setColor('#ED4245')
+                    .setDescription(`⚠️ ${message.author} has been timed out for **10 minutes** due to spamming.`)
+                    .setTimestamp();
+                await message.channel.send({ embeds: [spamEmbed] });
+            } catch (e) { console.error(e); }
         }
     }
 };
