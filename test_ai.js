@@ -1,16 +1,14 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { processAIQuery } = require('./utils/ai');
 require('dotenv').config();
 
 async function test() {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const m = "gemini-1.5-flash";
+    console.log("Testing NVIDIA NIM (Llama 3.3 70B)...");
     try {
-        console.log(`Testing ${m}...`);
-        const model = genAI.getGenerativeModel({ model: m });
-        const result = await model.generateContent("hi");
-        console.log(`✅ ${m} works! Response: ${result.response.text()}`);
+        const result = await processAIQuery("Hello! Who are you and what is your purpose?", "AdminTest");
+        console.log("✅ NVIDIA NIM Response:");
+        console.log(JSON.stringify(result, null, 2));
     } catch (e) {
-        console.log(`❌ ${m} failed: ${e.message}`);
+        console.log("❌ NVIDIA NIM Failed:", e.message);
     }
 }
 
