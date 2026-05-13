@@ -222,25 +222,27 @@ async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelO
 
 async function moderateMessage(content, channelName = "") {
     try {
+        // --- FAST PATH: Instant Regex Checks (0ms delay) ---
+        const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+)/gi;
+        if (linkRegex.test(content)) {
+            return {
+                actions: [{action: "delete_message"}, {action: "timeout", parameters: {duration: 10, reason: "Unauthorized Links"}}],
+                response: "External links are prohibited in this domain."
+            };
+        }
+
         const isEnglishChat = channelName.toLowerCase().includes('english');
-        const systemPrompt = `You are a Discord auto-moderator for DenClient.
-${isEnglishChat ? "STRICT RULE: This is an ENGLISH-ONLY chat. Any message not in English must be deleted." : ""}
-Flag messages that are toxic, spam, or inappropriate.
-If violation found, return JSON:
-{
-  "actions": [{"action": "delete_message"}, {"action": "timeout", "parameters": {"duration": 5, "reason": "Violation"}}],
-  "response": "Clean up your act. (mention the rule broken)"
-}
-If clean, return: {"actions": [], "response": null}`;
+        
+        // --- AI PATH: Complex Analysis (Language, Abuse, Context) ---
+        const systemPrompt = `Auto-mod. ${isEnglishChat ? "STRICT: Delete non-English." : ""} Return JSON: {"actions":[{"action":"delete_message"},{"action":"timeout","parameters":{"duration":5,"reason":"..."}}],"response":"warn"}. If clean: {"actions":[],"response":null}`;
 
         const messages = [
             { role: "system", content: systemPrompt },
             { role: "user", content: content }
         ];
 
-        // Moderation needs high reasoning for language detection; use 70B (it's a small prompt so no 500 errors)
-        const data = await callNvidiaNIM(messages, true, 2, "meta/llama-3.1-70b-instruct");
-        console.log(`[AI-MOD-DATA] Result for "${content.slice(0, 20)}...":`, JSON.stringify(data));
+        // Using 70B for accuracy, but with optimized prompt for speed
+        const data = await callNvidiaNIM(messages, true, 1, "meta/llama-3.1-70b-instruct");
         return data || { actions: [], response: null };
     } catch (error) {
         return { actions: [], response: null };
