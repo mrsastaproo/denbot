@@ -27,7 +27,7 @@ async function processAIQuery(query, userTag) {
         
         // No fake delay - we let the 70B brain actually process the self-correction logic
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.3-70b-versatile",
+            model: "openai/gpt-oss-120b", // Massive 120B Brain - Superior Intelligence + Unlimited
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...history,
