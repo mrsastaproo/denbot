@@ -1,5 +1,7 @@
-const badWords = ['bc', 'mc', 'bsdk', 'randi', 'madarchod', 'behenchod', 'gandu'];
-const hinglishWords = ['kaise', 'bhai', 'hai', 'kya', 'hal', 'aap', 'tum', 'mujh', 'tujh', 'apne', 'raha', 'rahe', 'tha', 'thi', 'kar', 'karo', 'karne', 'aur', 'nhi', 'nahi', 'toh', 'kyu', 'kyoon', 'hum', 'hume', 'mera', 'meri', 'mere', 'karna', 'karliya', 'gya', 'gyi', 'gye', 'hi', 'bhi', 'se', 'ko', 'ki', 'ka', 'mein'];
+const badWords = ['bc', 'mc', 'bsdk', 'randi', 'madarchod', 'behenchod', 'gandu', 'suar', 'tatti', 'pille', 'ullu', 'bevda', 'bewda'];
+const hinglishWords = [
+    'kaise', 'bhai', 'hai', 'kya', 'hal', 'aap', 'tum', 'mujh', 'tujh', 'apne', 'raha', 'rahe', 'tha', 'thi', 'kar', 'karo', 'karne', 'aur', 'nhi', 'nahi', 'toh', 'kyu', 'kyoon', 'hum', 'hume', 'mera', 'meri', 'mere', 'karna', 'karliya', 'gya', 'gyi', 'gye', 'hi', 'bhi', 'se', 'ko', 'ki', 'ka', 'mein', 'kaha', 'tha', 'rha', 'rhi', 'rhe', 'unke', 'inko', 'unko', 'kisko', 'iska', 'uska', 'kiska', 'aisa', 'waisa', 'kaisa', 'hi', 'toh', 'na', 'ne', 'par', 'hi', 'tha', 'hue', 'huye', 'huey', 'le', 'lo', 'do', 'de', 'liye', 'laye', 'lao', 'jaa', 'jao', 'jaate', 'raha', 'rahunga', 'jaunga', 'karunga', 'kuch', 'sab', 'sabko', 'koi', 'kisi', 'kyon', 'kyu', 'kyoon', 'hamara', 'hamari', 'hamare', 'tumhara', 'tumhari', 'tumhare', 'apna', 'apni', 'apne', 'kab', 'jab', 'tab', 'abhi', 'tabhi', 'kabhi', 'waha', 'yaha', 'jaha', 'idhar', 'udhar', 'kidhar', 'kon', 'kaun', 'jisne', 'kisne', 'usne', 'isne', 'unne', 'jinne', 'mein', 'humne', 'tumne', 'aapne', 'me', 'hu', 'ho', 'hoon'
+];
 const dmPhrases = ['dm me', 'dm us', 'direct message', 'pm me', 'pm us', 'message me', 'contact me', 'inbox me'];
 
 function fastModerate(content, channelName = "") {
