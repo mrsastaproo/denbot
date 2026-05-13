@@ -22,7 +22,7 @@ JSON RESPONSE FORMAT:
 {"actions":[{"action":"tool_name","parameters":{}}],"response":"reply"}
 
 EXAMPLE - Help Guide Request:
-{"actions":[{"action":"create_private_channel","parameters":{"name":"│💎-staff-guide"}},{"action":"send_premium_message","parameters":{"channel":"│💎-staff-guide","title":"🛡️ .kick — Remove a Member","content":"Removes a user from the server temporarily.\n**Usage:** `.kick @user [reason]`\n**Example:** `.kick @Spammer Breaking rules`","color":"#EAB308"}},{"action":"send_premium_message","parameters":{"channel":"│💎-staff-guide","title":"🔨 .ban — Permanent Ban","content":"Permanently bans a user from the server.\n**Usage:** `.ban @user [reason]`\n**Example:** `.ban @Hacker Exploit attempt`","color":"#EAB308"}}],"response":"Done! All command guides are live in the new premium channel."}
+{"actions":[{"action":"create_private_channel","parameters":{"name":"diamond-staff-guide"}},{"action":"send_premium_message","parameters":{"channel":"diamond-staff-guide","title":"Kick Command","content":"Removes a user from the server temporarily.\\n**Usage:** .kick @user [reason]","color":"#EAB308"}}],"response":"Done!"}
 
 COMMANDS TO EXPLAIN IF ASKED:
 - .kick: Kick a user from the server
@@ -35,7 +35,7 @@ COMMANDS TO EXPLAIN IF ASKED:
 - den$close: Owner-only instant delete of ticket/deal channel
 
 STYLING RULES:
-- Channel names: Use premium prefix like │💎- or │🛡️-
+- Channel names: Use premium prefix like diamond- or star-
 - Embed color: Always #EAB308
 - Use emojis and bold text in content
 `;
@@ -82,7 +82,7 @@ async function processAIQuery(query, userTag) {
     } catch (error) {
         const errMsg = error.response?.data?.error?.message || error.response?.data || error.message;
         console.error('[AI-ERROR]', errMsg);
-        return { actions: [], response: `❌ AI Error: ${errMsg}` };
+        return { actions: [], response: "AI Error: " + errMsg };
     }
 }
 
