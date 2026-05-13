@@ -259,10 +259,10 @@ const { loadMemory, saveMemory } = require('./memory');
 
 const conversationHistory = new Map();
 
-async function callNvidiaNIM(messages, isModeration = false, retries = 2) {
+async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelOverride = null) {
     try {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
-            model: process.env.AI_MODEL || "meta/llama-3.3-70b-instruct",
+            model: modelOverride || process.env.AI_MODEL || "meta/llama-3.1-70b-instruct",
             messages: messages,
             temperature: 0.8, // Slightly lower for more stability
             top_p: 0.9,
@@ -323,9 +323,10 @@ async function processAIQuery(query, userTag) {
         const memory = loadMemory();
         let history = conversationHistory.get(userTag) || [];
 
-        // Build context including Work Log (Memory)
-        const workLogContext = memory.workLog.length > 0 
-            ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 RECENT WORK LOG (MEMORY):\n${memory.workLog.map(log => `- ${log}`).join('\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+        // Build context including RECENT Work Log (Memory) - Trimmed to 10 for stability
+        const recentWork = memory.workLog.slice(-10);
+        const workLogContext = recentWork.length > 0 
+            ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 RECENT SERVER ACTIONS:\n${recentWork.map(log => `- ${log}`).join('\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
             : "";
 
         const messages = [
@@ -334,7 +335,9 @@ async function processAIQuery(query, userTag) {
             { role: "user", content: query }
         ];
 
-        const data = await callNvidiaNIM(messages);
+        // Safety: Switch to 3.1 70B if 3.3 is throwing 500s
+        const modelToUse = process.env.AI_MODEL || "meta/llama-3.1-70b-instruct";
+        const data = await callNvidiaNIM(messages, false, 2, modelToUse);
 
         // Update In-Memory History
         history.push({ role: "user", content: query });
