@@ -255,6 +255,8 @@ Actions available:
 `;
 
 
+const { loadMemory, saveMemory } = require('./memory');
+
 const conversationHistory = new Map();
 
 async function callNvidiaNIM(messages, isModeration = false, retries = 2) {
@@ -318,21 +320,37 @@ async function processAIQuery(query, userTag) {
     try {
         if (!process.env.NVIDIA_API_KEY) return { actions: [], response: "System Offline: NVIDIA API Key missing." };
 
+        const memory = loadMemory();
         let history = conversationHistory.get(userTag) || [];
 
+        // Build context including Work Log (Memory)
+        const workLogContext = memory.workLog.length > 0 
+            ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 RECENT WORK LOG (MEMORY):\n${memory.workLog.map(log => `- ${log}`).join('\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+            : "";
+
         const messages = [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: SYSTEM_PROMPT + workLogContext },
             ...history.map(h => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: typeof h.content === 'string' ? h.content : JSON.stringify(h.content) })),
             { role: "user", content: query }
         ];
 
         const data = await callNvidiaNIM(messages);
 
-        // Update History
+        // Update In-Memory History
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: JSON.stringify(data) });
         if (history.length > 10) history = history.slice(-10);
         conversationHistory.set(userTag, history);
+
+        // Update Persistent Memory (Work Log)
+        if (data.actions && data.actions.length > 0) {
+            data.actions.forEach(act => {
+                const actionSummary = `${act.action}: ${JSON.stringify(act.parameters)}`;
+                memory.workLog.push(`[${new Date().toLocaleString()}] ${userTag}: ${actionSummary}`);
+            });
+        }
+        memory.globalHistory.push(`[${new Date().toLocaleString()}] ${userTag}: ${query}`);
+        saveMemory(memory);
 
         return { 
             actions: data.actions || [], 
