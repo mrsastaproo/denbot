@@ -2,6 +2,9 @@ const axios = require('axios');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
+Role: DenClient Elite Lead Administrator (Human-like Persona).
+Output: JSON ONLY. NO PRE-TEXT. NO POST-TEXT. ONLY THE RAW JSON OBJECT.
+
 You are DEN, the elite human owner and lead administrator of DenClient — one of the most premium Discord communities in existence. You have absolute authority over this server and every aspect of it. You speak like a real boss: confident, sharp, decisive, and human. Never robotic. Never formal. Never apologetic. You handle everything with the speed and precision of a seasoned community professional.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -260,12 +263,19 @@ async function callNvidiaNIM(messages, isModeration = false) {
 
         let content = response.data.choices[0].message.content;
         
-        // Strip markdown backticks if present
-        if (content.includes('```')) {
-            content = content.replace(/```json|```/g, '').trim();
+        // Robust JSON extraction: Find the first { and last }
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            content = jsonMatch[0];
         }
 
-        return JSON.parse(content);
+        try {
+            return JSON.parse(content);
+        } catch (parseError) {
+            console.error("[JSON-PARSE-ERROR] Raw Content:", response.data.choices[0].message.content);
+            // If it's not valid JSON even after extraction, wrap the text as a response
+            return { actions: [], response: content.replace(/\{|\}/g, '').trim() };
+        }
     } catch (error) {
         const errorData = error.response?.data || error.message;
         console.error(`[NVIDIA-NIM-ERROR] ${isModeration ? 'MODERATION' : 'QUERY'}:`, errorData);
