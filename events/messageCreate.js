@@ -93,14 +93,20 @@ module.exports = {
                 if (!result) throw new Error('AI returned null result');
 
                 const actions = result.actions || (result.action ? [result] : []);
+                let lastCreatedChannel = null;
                 const findChannel = (input) => {
                     if (!input) return message.channel;
                     const strInput = String(input).toLowerCase();
                     if (strInput === 'current' || strInput === 'here') return message.channel;
                     
+                    const exact = message.guild.channels.cache.get(input) || 
+                                  message.guild.channels.cache.find(c => c.name.toLowerCase() === strInput);
+                    if (exact) return exact;
+
                     const cleanInput = strInput.replace(/[^\w\s]/g, '').trim();
-                    return message.guild.channels.cache.get(input) || 
-                           message.guild.channels.cache.find(c => c.name.toLowerCase() === cleanInput) ||
+                    if (!cleanInput) return null;
+
+                    return message.guild.channels.cache.find(c => c.name.toLowerCase().replace(/[^\w\s]/g, '') === cleanInput) ||
                            message.guild.channels.cache.find(c => c.name.toLowerCase().includes(cleanInput));
                 };
 
@@ -109,10 +115,12 @@ module.exports = {
                     console.log(`[AI-DEBUG] Executing Action: ${act.action}`);
                     try {
                         if (act.action === 'send_message') {
-                            const target = findChannel(act.parameters?.channel);
+                            const target = findChannel(act.parameters?.channel) || lastCreatedChannel;
                             if (target) await target.send(act.parameters.content).catch(e => console.error('Send Error:', e));
                         } else if (act.action === 'send_premium_message') {
-                            const target = findChannel(act.parameters?.channel);
+                            let target = findChannel(act.parameters?.channel);
+                            if (!target && lastCreatedChannel) target = lastCreatedChannel;
+                            
                             if (target) {
                                 const content = act.parameters.content || act.parameters.text || act.parameters.message || act.parameters.description || 'No description provided.';
                                 const premiumEmbed = new EmbedBuilder()
@@ -125,7 +133,7 @@ module.exports = {
                                 await target.send({ embeds: [premiumEmbed] }).catch(e => console.error('Premium Send Error:', e));
                             }
                         } else if (act.action === 'set_channel_access') {
-                            const target = findChannel(act.parameters?.channel) || message.channel;
+                            const target = findChannel(act.parameters?.channel) || lastCreatedChannel || message.channel;
                             const roleInput = act.parameters?.role ? String(act.parameters.role).toLowerCase() : 'everyone';
                             const access = act.parameters?.access ? String(act.parameters.access).toLowerCase() : 'deny';
                             let role = message.guild.roles.everyone;
@@ -141,7 +149,7 @@ module.exports = {
                             if (categoryInput) {
                                 category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(String(categoryInput).toLowerCase()) || c.id === categoryInput));
                             }
-                            const newChannel = await message.guild.channels.create({
+                            lastCreatedChannel = await message.guild.channels.create({
                                 name: act.parameters?.name || '│💎-den-console',
                                 type: ChannelType.GuildText,
                                 parent: category ? category.id : null,
@@ -151,7 +159,7 @@ module.exports = {
                                     { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                                 ]
                             });
-                            await message.reply(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
+                            await message.reply(`✅ **Action Executed:** Created ${lastCreatedChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
                         } else if (act.action === 'delete_channel') {
                             const target = findChannel(act.parameters?.id);
                             if (target && target.id !== message.channel.id) {
