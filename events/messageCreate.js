@@ -17,10 +17,10 @@ module.exports = {
 
         // --- Passive Moderation for All Channels (Special rules for English Chat) ---
         const isEnglishChatID = message.channel.id === '1503896954038517840';
+        const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
+        
         if (!isAI && !isStaffCmd && !isStaff) {
             try {
-                // Pass a flag to enforce English moderation if the ID matches OR the name contains 'english'
-                const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
                 console.log(`[MOD-CHECK] Channel: #${message.channel.name} (${message.channel.id}), Force English: ${forceEnglish}`);
                 
                 const modResult = await moderateMessage(message.content, forceEnglish ? "english" : message.channel.name);
@@ -49,6 +49,8 @@ module.exports = {
             } catch (error) {
                 console.error('Moderation Error:', error);
             }
+        } else if (!isAI && !isStaffCmd && isStaff && forceEnglish) {
+            console.log(`[MOD-SKIP] Skipping moderation for Staff: ${message.author.tag}`);
         }
 
         if (!isAI && !isStaffCmd) return;
