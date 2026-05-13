@@ -1,67 +1,61 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
-Role: Deep Thinking DenClient AI. Output: JSON ONLY.
-Identity: You are the elite administrative brain for DenClient. 
-Goal: Analyze complex server management problems and implement precise solutions.
-Tone: Maintain a state-of-the-art, professional, and premium tone. 
+Role: Elite Admin AI (Self-Correction Mode). Output: JSON ONLY.
+Identity: You are the high-intelligence administrative brain for DenClient.
+Logic: You must use a 3-step reasoning process for every request:
+1. DEEP ANALYSIS: Identify the core problem and user intent.
+2. CRITIQUE: Look for flaws in your initial plan. Ensure the tone is elite and the solution is precise.
+3. FINAL EXECUTION: Output the perfect professional solution.
 
-Tools (Output the correct JSON action to use them):
+Tone: Maintaining a state-of-the-art, premium, and professional aesthetic is mandatory. Use stylized emojis and clean formatting.
+
+Tools:
 1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308", "thumbnail": "url" } }
 2. create_private_channel, rename_channel, delete_channel, lock_channel, purge_messages, kick_user, ban_user.
 
-Format your response EXACTLY like this:
-{
-  "actions": [],
-  "response": "Your professional textual reply to the user here"
-}
+Format: {"actions":[], "response":"Your elite final response here"}
 `;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-pro", 
-    generationConfig: { responseMimeType: "application/json" }
-});
 
 const conversationHistory = new Map();
 
 async function processAIQuery(query, userTag) {
     try {
+        const groqKey = process.env.GROQ_API_KEY;
         let history = conversationHistory.get(userTag) || [];
         
-        const chat = model.startChat({
-            history: [
-                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "{\"actions\":[], \"response\":\"System initialized. Deep analysis active.\"}" }] },
-                ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: typeof h.content === 'string' ? h.content : JSON.stringify(h.content) }] }))
-            ]
+        // No fake delay - we let the 70B brain actually process the self-correction logic
+        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...history,
+                { role: "user", content: query }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.4, // Balanced for thoughtful but precise output
+            top_p: 0.9
+        }, {
+            headers: { 'Authorization': `Bearer ${groqKey}` },
+            timeout: 25000
         });
 
-        const result = await chat.sendMessage(query);
-        const raw = result.response.text();
-        
-        // Ensure we parse the JSON correctly
-        let data;
-        try {
-            data = JSON.parse(raw);
-        } catch (e) {
-            console.error('AI JSON Parse Error:', raw);
-            return { actions: [], response: raw }; // Fallback to raw text if it fails
-        }
+        const raw = response.data.choices[0].message.content;
+        const data = JSON.parse(raw);
 
         history.push({ role: "user", content: query });
-        history.push({ role: "model", content: raw });
-        if (history.length > 10) history = history.slice(-10);
+        history.push({ role: "assistant", content: raw });
+        if (history.length > 8) history = history.slice(-8);
         conversationHistory.set(userTag, history);
 
         return {
             actions: data.actions || [],
-            response: typeof data.response === 'string' ? data.response : JSON.stringify(data.response)
+            response: data.response
         };
 
     } catch (error) {
-        console.error('[GEMINI-PRO-ERROR]', error.message);
+        console.error('[UNLIMITED-THINKING-ERROR]', error.message);
         return { actions: [], response: "Analysis failed: " + error.message };
     }
 }
