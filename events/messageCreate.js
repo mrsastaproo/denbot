@@ -198,6 +198,7 @@ module.exports = {
                                 const roleId = act.parameters?.role?.toString().replace(/[<@&>]/g, '');
                                 if (target && roleId) {
                                     const role = message.guild.roles.cache.get(roleId);
+                                    if (role) {
                                         const allow = {}; act.parameters.allow?.forEach(p => allow[p] = true);
                                         const deny = {}; act.parameters.deny?.forEach(p => deny[p] = false);
                                         await target.permissionOverwrites.edit(role, { ...allow, ...deny }).catch(() => {});
@@ -218,7 +219,6 @@ module.exports = {
                                     await channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null }).catch(() => {});
                                 }
                                 results.push(`🟢 **SERVER LOCKDOWN LIFTED** - Access restored.`);
-                            }
 
                             } else if (act.action === 'slow_mode') {
                                 const seconds = Math.min(parseInt(act.parameters?.seconds) || 0, 21600);
