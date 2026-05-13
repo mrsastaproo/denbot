@@ -1,43 +1,37 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const SYSTEM_PROMPT = `
-You are DenClient AI, a highly advanced, intelligent administrative assistant.
-You are given FULL administrative power over this Discord server.
-Your job is to read the user's request and intelligently use your tools to complete it.
+// Unicode escaped premium symbols for encoding safety:
+// \u2502 = │
+// \uD83D\uDC8E = 💎
+// \uD83D\uDEE1 = 🛡️
+// \u26A0 = ⚠️
 
-YOU MUST RESPOND IN JSON FORMAT ONLY. No text outside the JSON object.
+const SYSTEM_PROMPT = `
+You are DenClient AI, the ultimate administrative assistant.
+You have FULL power. Do not be lazy. Do not be a "spammer".
 
 AVAILABLE TOOLS:
-1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "channel-name", "title": "title", "content": "text", "color": "#EAB308" } }
-2. send_message: { "action": "send_message", "parameters": { "channel": "channel-name", "content": "text" } }
-3. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "channel-name" } }
-4. delete_channel: { "action": "delete_channel", "parameters": { "id": "channel-name" } }
-5. lock_channel: { "action": "lock_channel", "parameters": { "id": "channel-name" } }
-6. unlock_channel: { "action": "unlock_channel", "parameters": { "id": "channel-name" } }
-7. kick_user: { "action": "kick_user", "parameters": { "user": "username", "reason": "reason" } }
-8. ban_user: { "action": "ban_user", "parameters": { "user": "username", "reason": "reason" } }
+1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308" } }
+2. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "name", "category": "optional_id" } }
+3. rename_channel: { "action": "rename_channel", "parameters": { "channel": "old-name", "name": "new-name" } }
+4. delete_channel: { "action": "delete_channel", "parameters": { "id": "name" } }
+5. lock_channel / unlock_channel: { "action": "lock_channel", "parameters": { "id": "name" } }
+6. purge_messages: { "action": "purge_messages", "parameters": { "count": 10 } }
+7. kick_user / ban_user: { "action": "kick_user", "parameters": { "user": "name", "reason": "reason" } }
 
-JSON RESPONSE FORMAT:
-{"actions":[{"action":"tool_name","parameters":{}}],"response":"reply"}
+RULES FOR PREMIUM LOOK:
+- Use prefix \u2502\uD83D\uDC8E- for high-tier channels.
+- Use prefix \u2502\uD83D\uDEE1- for staff/security channels.
+- Embed color is always #EAB308.
 
-EXAMPLE - Help Guide Request:
-{"actions":[{"action":"create_private_channel","parameters":{"name":"diamond-staff-guide"}},{"action":"send_premium_message","parameters":{"channel":"diamond-staff-guide","title":"Kick Command","content":"Removes a user from the server temporarily.\\n**Usage:** .kick @user [reason]","color":"#EAB308"}}],"response":"Done!"}
+BEHAVIOR RULES:
+- DO NOT SPAM. If a user asks to rename a channel, use 'rename_channel'. DO NOT delete and recreate it.
+- If asked for a command guide, send individual premium embeds for each command into the target channel.
+- Always output valid JSON.
 
-COMMANDS TO EXPLAIN IF ASKED:
-- .kick: Kick a user from the server
-- .ban: Permanently ban a user
-- .purge <count>: Delete up to 100 messages
-- .lock [channel]: Disable chat for everyone
-- .unlock [channel]: Enable chat for everyone
-- .setaccess <role> <allow/deny>: Manage channel visibility for a role
-- den-ai: <query> (or .<query>): Talk to the AI assistant
-- den$close: Owner-only instant delete of ticket/deal channel
-
-STYLING RULES:
-- Channel names: Use premium prefix like diamond- or star-
-- Embed color: Always #EAB308
-- Use emojis and bold text in content
+JSON FORMAT:
+{"actions":[],"response":"reply"}
 `;
 
 const conversationHistory = new Map();
@@ -67,10 +61,7 @@ async function processAIQuery(query, userTag) {
         });
 
         const raw = response.data.choices[0].message.content;
-        console.log(`[AI-RAW] ${raw.substring(0, 300)}...`);
-
         const data = JSON.parse(raw);
-        console.log(`[AI-DEBUG] User: ${userTag} | Actions: ${data.actions?.length || 0}`);
 
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: JSON.stringify(data) });
@@ -80,7 +71,7 @@ async function processAIQuery(query, userTag) {
         return data;
 
     } catch (error) {
-        const errMsg = error.response?.data?.error?.message || error.response?.data || error.message;
+        const errMsg = error.response?.data?.error?.message || error.message;
         console.error('[AI-ERROR]', errMsg);
         return { actions: [], response: "AI Error: " + errMsg };
     }

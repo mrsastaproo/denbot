@@ -88,14 +88,14 @@ module.exports = {
                 await message.channel.sendTyping();
                 
                 const result = await processAIQuery(query, message.author.tag);
-                console.log(`[AI-DEBUG] AI Response:`, JSON.stringify(result, null, 2));
-                
                 if (!result) throw new Error('AI returned null result');
 
                 const actions = result.actions || (result.action ? [result] : []);
                 let lastCreatedChannel = null;
+                const results = [];
+
                 const findChannel = (input) => {
-                    if (!input) return message.channel;
+                    if (!input) return null;
                     const strInput = String(input).toLowerCase();
                     if (strInput === 'current' || strInput === 'here') return message.channel;
                     
@@ -112,37 +112,22 @@ module.exports = {
 
                 for (const act of actions) {
                     if (!act || !act.action) continue;
-                    console.log(`[AI-DEBUG] Executing Action: ${act.action}`);
                     try {
                         if (act.action === 'send_message') {
-                            const target = findChannel(act.parameters?.channel) || lastCreatedChannel;
-                            if (target) await target.send(act.parameters.content).catch(e => console.error('Send Error:', e));
-                        } else if (act.action === 'send_premium_message') {
-                            let target = findChannel(act.parameters?.channel);
-                            if (!target && lastCreatedChannel) target = lastCreatedChannel;
-                            
-                            if (target) {
-                                const content = act.parameters.content || act.parameters.text || act.parameters.message || act.parameters.description || 'No description provided.';
-                                const premiumEmbed = new EmbedBuilder()
-                                    .setColor(act.parameters.color || '#EAB308')
-                                    .setTitle(act.parameters.title || '💎 DenClient Notification')
-                                    .setDescription(content)
-                                    .setThumbnail(client.user.displayAvatarURL())
-                                    .setFooter({ text: act.parameters.footer || 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
-                                    .setTimestamp();
-                                await target.send({ embeds: [premiumEmbed] }).catch(e => console.error('Premium Send Error:', e));
-                            }
-                        } else if (act.action === 'set_channel_access') {
                             const target = findChannel(act.parameters?.channel) || lastCreatedChannel || message.channel;
-                            const roleInput = act.parameters?.role ? String(act.parameters.role).toLowerCase() : 'everyone';
-                            const access = act.parameters?.access ? String(act.parameters.access).toLowerCase() : 'deny';
-                            let role = message.guild.roles.everyone;
-                            if (roleInput !== 'everyone') {
-                                role = message.guild.roles.cache.find(r => r.name.toLowerCase().includes(roleInput) || r.id === roleInput);
-                            }
-                            if (target && role) {
-                                await target.permissionOverwrites.edit(role, { ViewChannel: access === 'allow' }).catch(e => console.error('Perm Error:', e));
-                            }
+                            await target.send(act.parameters.content).catch(() => {});
+                            results.push(`Sent message to ${target.name}`);
+                        } else if (act.action === 'send_premium_message') {
+                            const target = findChannel(act.parameters?.channel) || lastCreatedChannel || message.channel;
+                            const premiumEmbed = new EmbedBuilder()
+                                .setColor(act.parameters.color || '#EAB308')
+                                .setTitle(act.parameters.title || 'DenClient Notification')
+                                .setDescription(act.parameters.content || act.parameters.description || '...')
+                                .setThumbnail(client.user.displayAvatarURL())
+                                .setFooter({ text: 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
+                                .setTimestamp();
+                            await target.send({ embeds: [premiumEmbed] }).catch(() => {});
+                            results.push(`Sent premium embed to ${target.name}`);
                         } else if (act.action === 'create_private_channel') {
                             const categoryInput = act.parameters?.category;
                             let category = null;
@@ -150,7 +135,7 @@ module.exports = {
                                 category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(String(categoryInput).toLowerCase()) || c.id === categoryInput));
                             }
                             lastCreatedChannel = await message.guild.channels.create({
-                                name: act.parameters?.name || '│💎-den-console',
+                                name: act.parameters?.name || 'den-console',
                                 type: ChannelType.GuildText,
                                 parent: category ? category.id : null,
                                 topic: act.parameters?.topic || 'Elite Control Center',
@@ -159,23 +144,29 @@ module.exports = {
                                     { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                                 ]
                             });
-                            await message.reply(`✅ **Action Executed:** Created ${lastCreatedChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
+                            results.push(`Created channel ${lastCreatedChannel}`);
+                        } else if (act.action === 'rename_channel') {
+                            const target = findChannel(act.parameters?.channel) || message.channel;
+                            if (target) {
+                                const oldName = target.name;
+                                await target.setName(act.parameters.name).catch(() => {});
+                                results.push(`Renamed \`${oldName}\` to \`${act.parameters.name}\``);
+                            }
                         } else if (act.action === 'delete_channel') {
                             const target = findChannel(act.parameters?.id);
                             if (target && target.id !== message.channel.id) {
+                                results.push(`Deleted \`${target.name}\``);
                                 await target.delete().catch(() => {});
-                                await message.reply(`✅ **Action Executed:** Deleted channel \`${target.name}\``).catch(() => {});
                             }
                         } else if (act.action === 'lock_channel' || act.action === 'unlock_channel') {
                             const isLock = act.action === 'lock_channel';
                             const target = findChannel(act.parameters?.id) || message.channel;
-                            if (target) {
-                                await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock }).catch(() => {});
-                                await message.reply(`✅ **Action Executed:** ${isLock ? 'Locked' : 'Unlocked'} ${target}`).catch(() => {});
-                            }
+                            await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock }).catch(() => {});
+                            results.push(`${isLock ? 'Locked' : 'Unlocked'} ${target.name}`);
                         } else if (act.action === 'purge_messages') {
                             const count = Math.min(parseInt(act.parameters?.count) || 10, 100);
                             await message.channel.bulkDelete(count, true).catch(() => {});
+                            results.push(`Purged ${count} messages`);
                         } else if (act.action === 'kick_user' || act.action === 'ban_user') {
                             const isBan = act.action === 'ban_user';
                             const targetInput = String(act.parameters?.user || '');
@@ -183,30 +174,26 @@ module.exports = {
                             if (targetMember && targetMember.moderatable) {
                                 if (isBan) await targetMember.ban({ reason: act.parameters?.reason }).catch(() => {});
                                 else await targetMember.kick(act.parameters?.reason).catch(() => {});
-                                await message.reply(`✅ **Action Executed:** ${isBan ? 'Banned' : 'Kicked'} ${targetMember.user.tag}`).catch(() => {});
+                                results.push(`${isBan ? 'Banned' : 'Kicked'} ${targetMember.user.tag}`);
                             }
                         }
-                    } catch (actionErr) {
-                        console.error(`[Action Error] ${act.action}:`, actionErr);
-                    }
+                    } catch (err) { console.error(err); }
+                }
+
+                if (results.length > 0) {
+                    const summary = results.map(r => `✅ **Action:** ${r}`).join('\n');
+                    await message.reply(summary).catch(() => {});
                 }
 
                 const aiResponse = result.response || result.message || result.answer || result.content;
                 if (aiResponse) {
-                    // Watchdog: If AI says it did something but actions are empty
-                    if (actions.length === 0 && (aiResponse.toLowerCase().includes('created') || aiResponse.toLowerCase().includes('deleted') || aiResponse.toLowerCase().includes('locked'))) {
-                        await message.reply(`${aiResponse}\n\n⚠️ **System Note:** I noticed I didn't actually execute any technical actions. Please try rephrasing your command if something is missing.`).catch(() => {});
-                    } else {
-                        await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
-                    }
-                } else if (actions.length > 0) {
-                    await message.reply(`✅ **Multi-Action Executed:** Processed ${actions.length} requests successfully.`).catch(() => {});
+                    await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
                 }
 
                 return;
             } catch (error) {
                 console.error('AI Processing Error:', error);
-                await message.reply("❌ **Error:** I encountered a technical issue while processing that request. Please try again or simplify the command.").catch(() => {});
+                await message.reply("❌ **Error:** I encountered a technical issue. Please try again.").catch(() => {});
                 return;
             }
         }
@@ -251,7 +238,8 @@ module.exports = {
                 'par', 'toh', 'hi', 'bhi', 'na', 'ne', 'mein', 'hum', 'he', 'hu', 'ho', 'ab', 'tak', 'jab', 'tab', 'ka', 'ki', 'ke'
             ];
             const words = content.split(/\s+/);
-            const hasHindi = words.some(w => hindiKeywords.includes(w));
+            const wordsNormalized = words.map(w => w.replace(/[^\w]/g, ''));
+            const hasHindi = wordsNormalized.some(w => hindiKeywords.includes(w));
             
             if (hasHindi) {
                 const warns = (langWarningMap.get(userId) || 0) + 1;
