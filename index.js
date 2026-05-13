@@ -42,4 +42,24 @@ for (const file of handlerFiles) {
     require(`./handlers/${file}`)(client);
 }
 
-client.login(process.env.TOKEN);
+// Global Error Handling to prevent silent crashes
+process.on('unhandledRejection', error => {
+    console.error(' [CRITICAL ERROR] Unhandled Promise Rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error(' [CRITICAL ERROR] Uncaught Exception:', error);
+});
+
+client.on('error', error => {
+    console.error(' [SYSTEM ERROR] Discord Client Error:', error);
+});
+
+client.login(process.env.TOKEN).then(() => {
+    console.log(`[SYSTEM] Authenticated successfully with Discord.`);
+}).catch(err => {
+    console.error(`[FATAL ERROR] Failed to login to Discord: ${err.message}`);
+    if (err.message.includes('intent')) {
+        console.error(' [REMEDY] Please enable "MESSAGE CONTENT INTENT" in Discord Developer Portal.');
+    }
+});
