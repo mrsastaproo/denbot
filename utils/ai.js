@@ -223,8 +223,9 @@ async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelO
 async function moderateMessage(content, channelName = "") {
     try {
         // --- FAST PATH: Instant Regex Checks (0ms delay) ---
-        const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+)/gi;
+        const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|[a-z0-9]+\.[a-z]{2,})/gi;
         if (linkRegex.test(content)) {
+            console.log(`[LINK-DETECTED] Link found in: "${content}"`);
             return {
                 actions: [{action: "delete_message"}, {action: "timeout", parameters: {duration: 10, reason: "Unauthorized Links"}}],
                 response: "External links are prohibited in this domain."
