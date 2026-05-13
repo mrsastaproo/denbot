@@ -245,20 +245,20 @@ Actions available:
 
 const conversationHistory = new Map();
 
-async function callNvidiaNIM(messages, isModeration = false) {
+async function callNvidiaNIM(messages, isModeration = false, retries = 2) {
     try {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
-            model: process.env.AI_MODEL || "deepseek-ai/deepseek-v4-pro",
+            model: process.env.AI_MODEL || "meta/llama-3.3-70b-instruct",
             messages: messages,
-            temperature: 1.1, 
-            top_p: 0.95,
+            temperature: 0.8, // Slightly lower for more stability
+            top_p: 0.9,
             max_tokens: 4096
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            timeout: 180000 
+            timeout: 60000 // 60s is plenty for Llama 3.3 70B
         });
 
         let content = response.data.choices[0].message.content;
@@ -273,10 +273,13 @@ async function callNvidiaNIM(messages, isModeration = false) {
             return JSON.parse(content);
         } catch (parseError) {
             console.error("[JSON-PARSE-ERROR] Raw Content:", response.data.choices[0].message.content);
-            // If it's not valid JSON even after extraction, wrap the text as a response
             return { actions: [], response: content.replace(/\{|\}/g, '').trim() };
         }
     } catch (error) {
+        if (retries > 0) {
+            console.log(`[AI-RETRY] Retrying... (${retries} left)`);
+            return callNvidiaNIM(messages, isModeration, retries - 1);
+        }
         const errorData = error.response?.data || error.message;
         console.error(`[NVIDIA-NIM-ERROR] ${isModeration ? 'MODERATION' : 'QUERY'}:`, errorData);
         throw error;
