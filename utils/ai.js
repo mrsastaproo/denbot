@@ -206,8 +206,9 @@ async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelO
         }
     } catch (error) {
         if (retries > 0) {
-            console.log(`[AI-RETRY] Retrying... (${retries} left)`);
-            return callNvidiaNIM(messages, isModeration, retries - 1);
+            console.log(`[AI-RETRY] Retrying in 1s... (${retries} left)`);
+            await new Promise(res => setTimeout(res, 1000));
+            return callNvidiaNIM(messages, isModeration, retries - 1, modelOverride);
         }
         const errorData = error.response?.data || error.message;
         console.error(`[NVIDIA-NIM-ERROR] ${isModeration ? 'MODERATION' : 'QUERY'}:`, errorData);
@@ -245,13 +246,12 @@ async function processAIQuery(query, userTag, userId) {
         if (!process.env.NVIDIA_API_KEY) return { actions: [], response: "System Offline: NVIDIA API Key missing." };
 
         const memory = loadMemory();
-        // Use userId for stable memory across name changes
         let history = conversationHistory.get(userId) || [];
 
-        // Build context including RECENT Work Log (Memory) - Trimmed to 10 for stability
-        const recentWork = memory.workLog.slice(-10);
+        // Build context including RECENT Work Log (Memory) - Trimmed to 5 for maximum stability
+        const recentWork = memory.workLog.slice(-5);
         const workLogContext = recentWork.length > 0 
-            ? `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 RECENT SERVER ACTIONS:\n${recentWork.map(log => `- ${log}`).join('\n')}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`
+            ? `\n\n[RECENT SERVER ACTIONS]\n${recentWork.map(log => `- ${log}`).join('\n')}\n`
             : "";
 
         const messages = [
@@ -260,14 +260,14 @@ async function processAIQuery(query, userTag, userId) {
             { role: "user", content: query }
         ];
 
-        // Safety: Switch to 3.1 70B if 3.3 is throwing 500s
-        const modelToUse = process.env.AI_MODEL || "meta/llama-3.1-70b-instruct";
-        const data = await callNvidiaNIM(messages, false, 2, modelToUse);
+        // Using 8B for absolute stability against 500 errors
+        const modelToUse = process.env.AI_MODEL || "meta/llama-3.1-8b-instruct";
+        const data = await callNvidiaNIM(messages, false, 3, modelToUse);
 
-        // Update In-Memory History (Store only the text response to avoid JSON confusion)
+        // Update In-Memory History (Store only text)
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: data.response || "" });
-        if (history.length > 15) history = history.slice(-15);
+        if (history.length > 10) history = history.slice(-10);
         conversationHistory.set(userId, history);
 
         // Update Persistent Memory (Work Log)
