@@ -163,6 +163,54 @@ module.exports = {
                                 await target.permissionOverwrites.edit(message.guild.id, { SendMessages: null }).catch(() => {});
                                 results.push(`🔓 Unlocked **#${target.name}**`);
 
+                            } else if (act.action === 'move_user') {
+                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
+                                if (member && member.voice.channel) {
+                                    await member.voice.setChannel(act.parameters?.channel).catch(() => {});
+                                    results.push(`🚚 Moved **${member.user.tag}** to **#${message.guild.channels.cache.get(act.parameters?.channel)?.name || 'target'}**`);
+                                }
+
+                            } else if (act.action === 'disconnect_user') {
+                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
+                                if (member && member.voice.channel) {
+                                    await member.voice.disconnect().catch(() => {});
+                                    results.push(`🔌 Disconnected **${member.user.tag}** from voice`);
+                                }
+
+                            } else if (act.action === 'set_nickname') {
+                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
+                                if (member) {
+                                    await member.setNickname(act.parameters?.nickname).catch(() => {});
+                                    results.push(`📛 Set nickname for **${member.user.tag}** to **${act.parameters?.nickname}**`);
+                                }
+
+                            } else if (act.action === 'set_permissions') {
+                                const target = findChannel(act.parameters?.channel);
+                                if (target) {
+                                    const role = message.guild.roles.cache.get(act.parameters?.role.replace(/[<@&>]/g, ''));
+                                    if (role) {
+                                        const allow = {}; act.parameters.allow?.forEach(p => allow[p] = true);
+                                        const deny = {}; act.parameters.deny?.forEach(p => deny[p] = false);
+                                        await target.permissionOverwrites.edit(role, { ...allow, ...deny }).catch(() => {});
+                                        results.push(`🛠️ Updated permissions for **@${role.name}** in **#${target.name}**`);
+                                    }
+                                }
+
+                            } else if (act.action === 'lockdown_server') {
+                                const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+                                for (const [id, channel] of channels) {
+                                    await channel.permissionOverwrites.edit(message.guild.id, { SendMessages: false }).catch(() => {});
+                                }
+                                results.push(`🚨 **SERVER LOCKDOWN ENABLED** - All text channels locked.`);
+
+                            } else if (act.action === 'unlock_server') {
+                                const channels = message.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+                                for (const [id, channel] of channels) {
+                                    await channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null }).catch(() => {});
+                                }
+                                results.push(`🟢 **SERVER LOCKDOWN LIFTED** - Access restored.`);
+                            }
+
                             } else if (act.action === 'slow_mode') {
                                 const seconds = Math.min(parseInt(act.parameters?.seconds) || 0, 21600);
                                 await message.channel.setRateLimitPerUser(seconds).catch(() => {});
