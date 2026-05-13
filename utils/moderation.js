@@ -11,12 +11,15 @@ function fastModerate(content, channelName = "") {
     };
 
     const cleanContent = content.toLowerCase();
-    // Normalize content (remove spaces and symbols) to catch "d e n m u s i c . i n"
-    const normalizedContent = cleanContent.replace(/[\s\.\-\_\*\~]+/g, '');
+    // Normalize content (remove spaces) but KEEP dots to catch "d e n m u s i c . i n" -> "denmusic.in"
+    const spaceStripped = cleanContent.replace(/\s+/g, '');
+    const fullyNormalized = cleanContent.replace(/[\s\.\-\_\*\~]+/g, '');
 
     // 1. Link Detection (Comprehensive + Normalized)
     const linkRegex = /([a-z0-9]+\.[a-z]{2,})/gi;
-    if (linkRegex.test(cleanContent) || linkRegex.test(normalizedContent)) {
+    const obfuscatedLinkRegex = /([a-z0-9]+)\.(com|net|org|in|xyz|gg|info|me|biz|ru|uk|ca|de|jp|fr|au|us|tk)/gi;
+    
+    if (linkRegex.test(cleanContent) || linkRegex.test(spaceStripped) || obfuscatedLinkRegex.test(spaceStripped)) {
         results.actions.push({ action: 'delete_message' });
         results.actions.push({ action: 'timeout', parameters: { duration: 10, reason: 'Link/Obfuscated Link Sharing' } });
         results.response = "Link sharing (even obfuscated) is strictly prohibited.";
@@ -25,7 +28,7 @@ function fastModerate(content, channelName = "") {
 
     // 2. DM Solicitation Detection
     for (const phrase of dmPhrases) {
-        if (cleanContent.includes(phrase) || normalizedContent.includes(phrase.replace(/\s+/g, ''))) {
+        if (cleanContent.includes(phrase) || spaceStripped.includes(phrase.replace(/\s+/g, ''))) {
             results.actions.push({ action: 'delete_message' });
             results.response = "DM solicitation is prohibited. Keep discussions in the chat.";
             return results;
