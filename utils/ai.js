@@ -56,10 +56,9 @@ async function callNvidiaNIM(messages, isModeration = false) {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
             model: process.env.AI_MODEL || "deepseek-ai/deepseek-v4-pro",
             messages: messages,
-            temperature: 1, 
-            top_p: 0.95,
-            max_tokens: 16384,
-            chat_template_kwargs: { thinking: false }
+            temperature: 0.7, 
+            top_p: 0.9,
+            max_tokens: 4096
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
@@ -68,7 +67,13 @@ async function callNvidiaNIM(messages, isModeration = false) {
             timeout: 90000 
         });
 
-        const content = response.data.choices[0].message.content;
+        let content = response.data.choices[0].message.content;
+        
+        // Strip markdown backticks if present
+        if (content.includes('```')) {
+            content = content.replace(/```json|```/g, '').trim();
+        }
+
         return JSON.parse(content);
     } catch (error) {
         const errorData = error.response?.data || error.message;
