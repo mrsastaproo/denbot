@@ -54,18 +54,21 @@ const conversationHistory = new Map();
 async function callNvidiaNIM(messages, isModeration = false) {
     try {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
-            model: process.env.AI_MODEL || "deepseek-v4-pro",
+            model: process.env.AI_MODEL || "deepseek-ai/deepseek-v4-pro",
             messages: messages,
-            temperature: 0.2,
-            top_p: 0.7,
-            max_tokens: 1024,
-            response_format: { type: "json_object" }
+            temperature: 0.7, // Increased for more human-like variety as per NVIDIA sample
+            top_p: 0.95,
+            max_tokens: 4096,
+            response_format: { type: "json_object" },
+            extra_body: {
+                chat_template_kwargs: { thinking: false }
+            }
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            timeout: 60000 // 60 seconds timeout
+            timeout: 60000 
         });
 
         const content = response.data.choices[0].message.content;
