@@ -20,17 +20,24 @@ module.exports = {
         const isEnglishChatID = message.channel.id === '1503896954038517840';
         const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
         
-        if (!isAI && !isStaffCmd && !isStaff) {
-            const modResult = fastModerate(message.content, forceEnglish ? "english" : message.channel.name);
+        // Moderation (Now applies to everyone for links, but staff still bypass simple text/hinglish)
+        const modResult = fastModerate(message.content, forceEnglish ? "english" : message.channel.name);
+        
+        if (modResult.actions && modResult.actions.length > 0) {
+            // Check if this is a link violation (we block links for everyone)
+            const isLinkViolation = modResult.response?.toLowerCase().includes('link');
             
-            if (modResult.actions && modResult.actions.length > 0) {
+            // If it's NOT a link violation, staff still bypass (e.g. Hinglish is okay for staff)
+            if (isStaff && !isLinkViolation) {
+                // Staff bypass Hinglish/Bad words, but NOT Links
+            } else {
                 for (const act of modResult.actions) {
                     try {
                         if (act.action === 'delete_message') {
                             await message.delete().catch(() => {});
                         } else if (act.action === 'timeout') {
                             const member = message.member || await message.guild.members.fetch(message.author.id);
-                            if (member && member.moderatable) {
+                            if (member && member.moderatable && !isStaff) {
                                 await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
                             }
                         }
@@ -38,13 +45,11 @@ module.exports = {
                 }
 
                 if (modResult.response) {
-                    const warnMsg = await message.channel.send(`⚠️ ${message.author}, ${modResult.response}`);
-                    setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+                    const warnMsg = await message.channel.send(`\u26A0\uFE0F ${message.author}, ${modResult.response}`);
+                    setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
                 }
-                return; // Stop processing further for this message
+                return; // Stop processing further
             }
-        } else if (!isAI && !isStaffCmd && isStaff && forceEnglish) {
-            // Optional: Still check for links even for staff? No, user said don't activate if . isn't used.
         }
 
         if (!isAI && !isStaffCmd) return;
