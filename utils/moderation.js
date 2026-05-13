@@ -1,4 +1,5 @@
 const badWords = ['bc', 'mc', 'bsdk', 'randi', 'madarchod', 'behenchod', 'gandu']; // Add common abuse
+const hinglishWords = ['kaise', 'bhai', 'hai', 'kya', 'kya hal', 'aap', 'tum', 'mujh', 'tujh', 'apne', 'raha', 'rahe', 'tha', 'thi', 'kar', 'karo', 'karne', 'aur', 'nhi', 'nahi', 'toh', 'kyu', 'kyoon', 'hum', 'hume', 'mera', 'meri', 'mere'];
 
 function fastModerate(content, channelName = "") {
     const results = {
@@ -27,16 +28,25 @@ function fastModerate(content, channelName = "") {
         }
     }
 
-    // 3. English Chat Enforcement (No-AI version: detect non-latin characters)
+    // 3. English Chat Enforcement (No-AI version)
     const isEnglishChat = channelName.toLowerCase().includes('english');
     if (isEnglishChat) {
-        // Simple check: if message contains non-ASCII characters (like Hindi/Urdu script)
-        // Note: This won't catch "Hindi in English script" (Roman Urdu/Hindi)
+        // Detect non-latin characters (Hindi/Urdu script)
         const nonLatinRegex = /[^\x00-\x7F]+/g;
         if (nonLatinRegex.test(content)) {
             results.actions.push({ action: 'delete_message' });
             results.response = "This is an English-only chat. Please use English characters.";
             return results;
+        }
+
+        // Detect common Hinglish keywords (Roman Hindi)
+        const words = cleanContent.split(/\s+/);
+        for (const word of words) {
+            if (hinglishWords.includes(word)) {
+                results.actions.push({ action: 'delete_message' });
+                results.response = "English only, please. Non-English detected.";
+                return results;
+            }
         }
     }
 
