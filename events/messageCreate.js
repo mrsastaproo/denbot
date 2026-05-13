@@ -151,14 +151,20 @@ module.exports = {
                                     { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                                 ]
                             });
-                            await message.channel.send(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
+                            await message.reply(`✅ **Action Executed:** Created ${newChannel} ${category ? `in ${category.name}` : ''}`).catch(() => {});
                         } else if (act.action === 'delete_channel') {
                             const target = findChannel(act.parameters?.id);
-                            if (target && target.id !== message.channel.id) await target.delete().catch(() => {});
+                            if (target && target.id !== message.channel.id) {
+                                await target.delete().catch(() => {});
+                                await message.reply(`✅ **Action Executed:** Deleted channel \`${target.name}\``).catch(() => {});
+                            }
                         } else if (act.action === 'lock_channel' || act.action === 'unlock_channel') {
                             const isLock = act.action === 'lock_channel';
                             const target = findChannel(act.parameters?.id) || message.channel;
-                            if (target) await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock }).catch(() => {});
+                            if (target) {
+                                await target.permissionOverwrites.edit(message.guild.roles.everyone, { SendMessages: !isLock }).catch(() => {});
+                                await message.reply(`✅ **Action Executed:** ${isLock ? 'Locked' : 'Unlocked'} ${target}`).catch(() => {});
+                            }
                         } else if (act.action === 'purge_messages') {
                             const count = Math.min(parseInt(act.parameters?.count) || 10, 100);
                             await message.channel.bulkDelete(count, true).catch(() => {});
@@ -169,6 +175,7 @@ module.exports = {
                             if (targetMember && targetMember.moderatable) {
                                 if (isBan) await targetMember.ban({ reason: act.parameters?.reason }).catch(() => {});
                                 else await targetMember.kick(act.parameters?.reason).catch(() => {});
+                                await message.reply(`✅ **Action Executed:** ${isBan ? 'Banned' : 'Kicked'} ${targetMember.user.tag}`).catch(() => {});
                             }
                         }
                     } catch (actionErr) {
@@ -178,7 +185,12 @@ module.exports = {
 
                 const aiResponse = result.response || result.message || result.answer || result.content;
                 if (aiResponse) {
-                    await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
+                    // Watchdog: If AI says it did something but actions are empty
+                    if (actions.length === 0 && (aiResponse.toLowerCase().includes('created') || aiResponse.toLowerCase().includes('deleted') || aiResponse.toLowerCase().includes('locked'))) {
+                        await message.reply(`${aiResponse}\n\n⚠️ **System Note:** I noticed I didn't actually execute any technical actions. Please try rephrasing your command if something is missing.`).catch(() => {});
+                    } else {
+                        await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
+                    }
                 } else if (actions.length > 0) {
                     await message.reply(`✅ **Multi-Action Executed:** Processed ${actions.length} requests successfully.`).catch(() => {});
                 }
