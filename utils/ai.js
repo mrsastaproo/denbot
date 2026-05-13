@@ -215,18 +215,27 @@ async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelO
     }
 }
 
-async function moderateMessage(content, userTag, userId) {
+async function moderateMessage(content, channelName = "") {
     try {
-        if (!process.env.NVIDIA_API_KEY) return { actions: [], response: null };
+        const isEnglishChat = channelName.toLowerCase().includes('english');
+        const systemPrompt = `You are a Discord auto-moderator for DenClient.
+${isEnglishChat ? "STRICT RULE: This is an ENGLISH-ONLY chat. Any message not in English must be deleted." : ""}
+Flag messages that are toxic, spam, or inappropriate.
+If violation found, return JSON:
+{
+  "actions": [{"action": "delete_message"}, {"action": "timeout", "parameters": {"duration": 5, "reason": "Violation"}}],
+  "response": "Clean up your act. (mention the rule broken)"
+}
+If clean, return: {"actions": [], "response": null}`;
 
         const messages = [
-            { role: "system", content: MODERATION_PROMPT },
-            { role: "user", content: `Analyze this message from user ${userTag} (ID: ${userId}): "${content}"` }
+            { role: "system", content: systemPrompt },
+            { role: "user", content: content }
         ];
 
         const data = await callNvidiaNIM(messages, true);
-        return { actions: data.actions || [], response: data.response };
-    } catch (e) {
+        return data || { actions: [], response: null };
+    } catch (error) {
         return { actions: [], response: null };
     }
 }

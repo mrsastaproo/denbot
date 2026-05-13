@@ -15,10 +15,10 @@ module.exports = {
         const isModeratedChannel = message.channel.id === client.config.strictLogChannel;
         const isStaff = message.member.roles.cache.has(client.config.staffRole);
 
-        // --- Passive Moderation for English Chat ---
-        if (!isAI && !isStaffCmd && isModeratedChannel && !isStaff) {
+        // --- Passive Moderation for All Channels (Special rules for English Chat) ---
+        if (!isAI && !isStaffCmd && !isStaff) {
             try {
-                const modResult = await moderateMessage(message.content, message.author.tag, message.author.id);
+                const modResult = await moderateMessage(message.content, message.channel.name);
                 
                 if (modResult.actions && modResult.actions.length > 0) {
                     for (const act of modResult.actions) {
