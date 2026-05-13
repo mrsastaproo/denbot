@@ -185,6 +185,45 @@ module.exports = {
                                 else await targetMember.kick(act.parameters?.reason).catch(() => {});
                                 await message.reply(`✅ **Action Executed:** ${isBan ? 'Banned' : 'Kicked'} ${targetMember.user.tag}`).catch(() => {});
                             }
+                        } else if (act.action === 'generate_help_center') {
+                            const categoryInput = act.parameters?.category;
+                            let category = null;
+                            if (categoryInput) {
+                                category = message.guild.channels.cache.find(c => c.type === ChannelType.GuildCategory && (c.name.toLowerCase().includes(String(categoryInput).toLowerCase()) || c.id === categoryInput));
+                            }
+                            lastCreatedChannel = await message.guild.channels.create({
+                                name: act.parameters?.name || '│💎-premium-guide',
+                                type: ChannelType.GuildText,
+                                parent: category ? category.id : null,
+                                topic: 'Elite Command Reference',
+                                permissionOverwrites: [
+                                    { id: message.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                                    { id: message.author.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
+                                ]
+                            });
+                            
+                            const commands = [
+                                { title: '🛡️ .kick', content: 'Kicks a user from the server.\n**Usage:** `.kick <user> [reason]`\n**Example:** `.kick @Spammer Spammed links`' },
+                                { title: '🔨 .ban', content: 'Permanently bans a member.\n**Usage:** `.ban <user> [reason]`\n**Example:** `.ban @Hacker Exploiting`' },
+                                { title: '🧹 .purge', content: 'Deletes up to 100 recent messages.\n**Usage:** `.purge <count>`\n**Example:** `.purge 50`' },
+                                { title: '🔒 .lock', content: 'Disables chat for @everyone.\n**Usage:** `.lock [channel]`\n**Example:** `.lock #general`' },
+                                { title: '🔓 .unlock', content: 'Enables chat for @everyone.\n**Usage:** `.unlock [channel]`\n**Example:** `.unlock #general`' },
+                                { title: '🔑 .setaccess', content: 'Manages channel visibility.\n**Usage:** `.setaccess <role> <allow/deny>`\n**Example:** `.setaccess @Member allow`' },
+                                { title: '🤖 den-ai:', content: 'Talk to the AI Assistant!\n**Usage:** `den-ai: <query>` or `.<query>`\n**Example:** `den-ai: delete this channel`' },
+                                { title: '💥 den$close', content: 'Owner-only shortcut to instantly delete a ticket/deal channel.\n**Usage:** `den$close`' }
+                            ];
+
+                            for (const cmd of commands) {
+                                const embed = new EmbedBuilder()
+                                    .setColor('#EAB308')
+                                    .setTitle(cmd.title)
+                                    .setDescription(cmd.content)
+                                    .setThumbnail(client.user.displayAvatarURL())
+                                    .setFooter({ text: 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
+                                    .setTimestamp();
+                                await lastCreatedChannel.send({ embeds: [embed] }).catch(e => console.error('Macro Send Error:', e));
+                            }
+                            await message.reply(`✅ **Macro Executed:** Premium Help Center built perfectly at ${lastCreatedChannel}`).catch(() => {});
                         }
                     } catch (actionErr) {
                         console.error(`[Action Error] ${act.action}:`, actionErr);
