@@ -26,8 +26,9 @@ Format: {"actions":[], "response":"Your elite strategic reply here"}
 `;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Using Gemini 1.5 Flash for the MASSIVE quota (1 million tokens/min) as requested
 const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-pro", 
+    model: "gemini-1.5-flash", 
     generationConfig: { responseMimeType: "application/json" }
 });
 
@@ -40,7 +41,7 @@ async function processAIQuery(query, userTag) {
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "{\"actions\":[], \"response\":\"System initialized. God Mode active.\"}" }] },
+                { role: "model", parts: [{ text: "{\"actions\":[], \"response\":\"System initialized. God Mode active with High-Quota engine.\"}" }] },
                 ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: typeof h.content === 'string' ? h.content : JSON.stringify(h.content) }] }))
             ]
         });
