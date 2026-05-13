@@ -238,7 +238,7 @@ module.exports = {
                 }
 
                 if (result.response) {
-                    await message.reply(`${result.response}\n\n*ID: ${client.instanceId}*`).catch(() => message.channel.send(result.response));
+                    await message.reply(result.response).catch(() => message.channel.send(result.response));
                 } else if (results.length === 0) {
                     await message.reply("\u26A0\uFE0F **Analysis complete but no specific response or actions were generated.**").catch(() => {});
                 }
