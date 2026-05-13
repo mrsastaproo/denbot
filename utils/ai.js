@@ -27,7 +27,7 @@ async function processAIQuery(query, userTag) {
         
         // No fake delay - we let the 70B brain actually process the self-correction logic
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.3-70b-versatile", // Stable 70B Workhorse - High Rate Limits + Unlimited
+            model: "meta-llama/llama-4-scout-17b-16e-instruct", // 272B MoE Mega-Brain (Llama 4 Generation)
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...history,
