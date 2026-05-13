@@ -23,11 +23,19 @@ const STRICT_ROLES = [
     '1501299168658849883', '1501299273088892948'
 ];
 
+const processedMessages = new Set();
+
 module.exports = {
     name: 'messageCreate',
     async execute(message, client) {
         if (message.author.bot) return;
         if (!message.guild) return;
+
+        // Deduplication: Stop double-replies from the same process
+        if (processedMessages.has(message.id)) return;
+        processedMessages.add(message.id);
+        setTimeout(() => processedMessages.delete(message.id), 60000); // Clear after 1 min
+
 
         const member = message.member || await message.guild.members.fetch(message.author.id);
         if (!member) return;
@@ -187,7 +195,7 @@ module.exports = {
 
                 const aiResponse = result.response || result.message || result.answer || result.content;
                 if (aiResponse) {
-                    await message.reply(aiResponse).catch(() => message.channel.send(aiResponse));
+                    await message.reply(`${aiResponse}\n\n*ID: ${client.instanceId}*`).catch(() => message.channel.send(aiResponse));
                 }
 
                 return;

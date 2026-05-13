@@ -13,6 +13,10 @@ const client = new Client({
     ]
 });
 
+client.instanceId = Math.random().toString(36).substring(7).toUpperCase();
+console.log(`[SYSTEM] Starting Instance: ${client.instanceId}`);
+
+
 client.commands = new Collection();
 client.cooldowns = new Collection();
 client.warnings = new Map(); // Global warnings storage
