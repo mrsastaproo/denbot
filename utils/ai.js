@@ -56,25 +56,23 @@ async function callNvidiaNIM(messages, isModeration = false) {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
             model: process.env.AI_MODEL || "deepseek-ai/deepseek-v4-pro",
             messages: messages,
-            temperature: 0.7, // Increased for more human-like variety as per NVIDIA sample
+            temperature: 1, 
             top_p: 0.95,
-            max_tokens: 4096,
-            response_format: { type: "json_object" },
-            extra_body: {
-                chat_template_kwargs: { thinking: false }
-            }
+            max_tokens: 16384,
+            chat_template_kwargs: { thinking: false }
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            timeout: 60000 
+            timeout: 90000 
         });
 
         const content = response.data.choices[0].message.content;
         return JSON.parse(content);
     } catch (error) {
-        console.error(`[NVIDIA-NIM-ERROR] ${isModeration ? 'MODERATION' : 'QUERY'}:`, error.response?.data || error.message);
+        const errorData = error.response?.data || error.message;
+        console.error(`[NVIDIA-NIM-ERROR] ${isModeration ? 'MODERATION' : 'QUERY'}:`, errorData);
         throw error;
     }
 }
@@ -121,7 +119,8 @@ async function processAIQuery(query, userTag) {
         };
 
     } catch (error) {
-        return { actions: [], response: "Critical Failure: NVIDIA NIM Engine unreachable." };
+        const errorMsg = error.response?.data?.message || error.message;
+        return { actions: [], response: `Critical Failure: NVIDIA NIM Engine unreachable. (${errorMsg})` };
     }
 }
 
