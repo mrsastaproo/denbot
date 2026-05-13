@@ -1,5 +1,6 @@
-const badWords = ['bc', 'mc', 'bsdk', 'randi', 'madarchod', 'behenchod', 'gandu']; // Add common abuse
-const hinglishWords = ['kaise', 'bhai', 'hai', 'kya', 'kya hal', 'aap', 'tum', 'mujh', 'tujh', 'apne', 'raha', 'rahe', 'tha', 'thi', 'kar', 'karo', 'karne', 'aur', 'nhi', 'nahi', 'toh', 'kyu', 'kyoon', 'hum', 'hume', 'mera', 'meri', 'mere'];
+const badWords = ['bc', 'mc', 'bsdk', 'randi', 'madarchod', 'behenchod', 'gandu'];
+const hinglishWords = ['kaise', 'bhai', 'hai', 'kya', 'hal', 'aap', 'tum', 'mujh', 'tujh', 'apne', 'raha', 'rahe', 'tha', 'thi', 'kar', 'karo', 'karne', 'aur', 'nhi', 'nahi', 'toh', 'kyu', 'kyoon', 'hum', 'hume', 'mera', 'meri', 'mere', 'karna', 'karliya', 'gya', 'gyi', 'gye', 'hi', 'bhi', 'se', 'ko', 'ki', 'ka', 'mein'];
+const dmPhrases = ['dm me', 'dm us', 'direct message', 'pm me', 'pm us', 'message me', 'contact me', 'inbox me'];
 
 function fastModerate(content, channelName = "") {
     const results = {
@@ -8,14 +9,25 @@ function fastModerate(content, channelName = "") {
     };
 
     const cleanContent = content.toLowerCase();
+    // Normalize content (remove spaces and symbols) to catch "d e n m u s i c . i n"
+    const normalizedContent = cleanContent.replace(/[\s\.\-\_\*\~]+/g, '');
 
-    // 1. Link Detection (Comprehensive)
-    const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|[a-z0-9]+\.[a-z]{2,})/gi;
-    if (linkRegex.test(cleanContent)) {
+    // 1. Link Detection (Comprehensive + Normalized)
+    const linkRegex = /([a-z0-9]+\.[a-z]{2,})/gi;
+    if (linkRegex.test(cleanContent) || linkRegex.test(normalizedContent)) {
         results.actions.push({ action: 'delete_message' });
-        results.actions.push({ action: 'timeout', parameters: { duration: 10, reason: 'Link Sharing' } });
-        results.response = "External links are strictly prohibited.";
+        results.actions.push({ action: 'timeout', parameters: { duration: 10, reason: 'Link/Obfuscated Link Sharing' } });
+        results.response = "Link sharing (even obfuscated) is strictly prohibited.";
         return results;
+    }
+
+    // 2. DM Solicitation Detection
+    for (const phrase of dmPhrases) {
+        if (cleanContent.includes(phrase) || normalizedContent.includes(phrase.replace(/\s+/g, ''))) {
+            results.actions.push({ action: 'delete_message' });
+            results.response = "DM solicitation is prohibited. Keep discussions in the chat.";
+            return results;
+        }
     }
 
     // 2. Bad Words Detection
