@@ -54,7 +54,7 @@ const conversationHistory = new Map();
 async function callNvidiaNIM(messages, isModeration = false) {
     try {
         const response = await axios.post('https://integrate.api.nvidia.com/v1/chat/completions', {
-            model: process.env.AI_MODEL || "deepseek-ai/deepseek-v3",
+            model: process.env.AI_MODEL || "deepseek-ai/deepseek-v4-pro",
             messages: messages,
             temperature: 0.2,
             top_p: 0.7,
