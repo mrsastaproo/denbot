@@ -11,17 +11,19 @@ function fastModerate(content, channelName = "") {
     };
 
     const cleanContent = content.toLowerCase();
-    // Normalize content (remove spaces) but KEEP dots to catch "d e n m u s i c . i n" -> "denmusic.in"
-    const spaceStripped = cleanContent.replace(/\s+/g, '');
-    const fullyNormalized = cleanContent.replace(/[\s\.\-\_\*\~]+/g, '');
+    // NUCLEAR NORMALIZATION: Remove ALL symbols and spaces, keeping ONLY letters, numbers, and the dot
+    const nuclearContent = cleanContent.replace(/[^a-z0-9.]/g, '');
+    const dotStripped = nuclearContent.replace(/\./g, '');
 
-    // 1. Link Detection (Comprehensive + Normalized)
-    const linkRegex = /([a-z0-9]+\.[a-z]{2,})/gi;
-    const obfuscatedLinkRegex = /([a-z0-9]+)\.(com|net|org|in|xyz|gg|info|me|biz|ru|uk|ca|de|jp|fr|au|us|tk)/gi;
-    
-    if (linkRegex.test(cleanContent) || linkRegex.test(spaceStripped) || obfuscatedLinkRegex.test(spaceStripped)) {
+    // 1. Link Detection (Nuclear Path)
+    // Catch any text followed by a dot and a common TLD
+    const tlds = ['com', 'net', 'org', 'in', 'xyz', 'gg', 'me', 'biz', 'info', 'io', 'tk', 'ml', 'ga', 'cf', 'gq', 'co'];
+    const nuclearLinkRegex = new RegExp(`\\.(${tlds.join('|')})$`, 'i');
+    const dotPatternRegex = /([a-z0-9]+)\.([a-z0-9]+)/gi;
+
+    if (dotPatternRegex.test(nuclearContent) || dotPatternRegex.test(cleanContent.replace(/\s+/g, ''))) {
         results.actions.push({ action: 'delete_message' });
-        results.actions.push({ action: 'timeout', parameters: { duration: 10, reason: 'Link/Obfuscated Link Sharing' } });
+        results.actions.push({ action: 'timeout', parameters: { duration: 15, reason: 'Link/Obfuscated Link Sharing (Nuclear Match)' } });
         results.response = "Link sharing (even obfuscated) is strictly prohibited.";
         return results;
     }
