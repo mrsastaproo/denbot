@@ -157,7 +157,7 @@ module.exports = {
                                 .setColor(act.parameters.color || '#EAB308')
                                 .setTitle(act.parameters.title || 'DenClient Notification')
                                 .setDescription(act.parameters.content || act.parameters.description || '...')
-                                .setThumbnail(client.user.displayAvatarURL())
+                                .setThumbnail(act.parameters.thumbnail || client.user.displayAvatarURL())
                                 .setFooter({ text: 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
                                 .setTimestamp();
                             await target.send({ embeds: [premiumEmbed] }).catch(() => {});

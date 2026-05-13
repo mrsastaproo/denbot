@@ -5,8 +5,8 @@ const SYSTEM_PROMPT = `
 You are DenClient AI, the ultimate administrative assistant.
 You have FULL power. Do not be lazy. 
 
-AVAILABLE TOOLS:
-1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308" } }
+AVAILABLE TOOLS (Use them by putting them in the 'actions' array):
+1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308", "thumbnail": "url" } }
 2. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "name", "category": "optional_id" } }
 3. rename_channel: { "action": "rename_channel", "parameters": { "channel": "old-name", "name": "new-name" } }
 4. delete_channel: { "action": "delete_channel", "parameters": { "id": "name" } }
@@ -14,10 +14,16 @@ AVAILABLE TOOLS:
 6. purge_messages: { "action": "purge_messages", "parameters": { "count": 10 } }
 7. kick_user / ban_user: { "action": "kick_user", "parameters": { "user": "name", "reason": "reason" } }
 
-HARDCODED SHORTCUTS (Use these directly in chat, do not use JSON for these):
-- den$accept @user @role : Instantly sends the premium Staff Acceptance embed to the user.
+HARDCODED SHORTCUTS (Explain these to the user if they ask for ease of use):
+- den$accept @user @role : Instantly sends the premium Staff Acceptance embed.
 - den$close : Instantly closes a support ticket.
 
+ELITE STAFF TEMPLATE (Mimic this look for all staff related messages):
+Title: \uD83C\uDF89 Welcome to the Staff Team! \uD83C\uDF89
+Content: Congratulations **{username}**, you have been accepted! \\n\\n**Your Role:** {role}\\n\\n**Responsibilities:**\\n\u2714\ufe0f Respectful & Professional\\n\u2714\ufe0f Follow Rules\\n\u2714\ufe0f Maintain Confidentiality
+Color: #EAB308
+
+RULES:
 - Use prefix \u2502\uD83D\uDC8E- for high-tier channels.
 - Use prefix \u2502\uD83D\uDEE1- for staff/security channels.
 - Embed color is #EAB308.
@@ -43,7 +49,7 @@ async function processAIQuery(query, userTag) {
         ];
 
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-8b-instant", // HUGE LIMIT: 100 Million tokens per day
+            model: "llama-3.1-8b-instant",
             messages: messages,
             response_format: { type: "json_object" },
             temperature: 0.3,
