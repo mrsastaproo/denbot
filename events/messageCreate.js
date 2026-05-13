@@ -36,15 +36,41 @@ module.exports = {
         processedMessages.add(message.id);
         setTimeout(() => processedMessages.delete(message.id), 60000); // Clear after 1 min
 
-
         const member = message.member || await message.guild.members.fetch(message.author.id);
         if (!member) return;
 
-        const content = message.content.toLowerCase();
-        const normalizedContent = content.replace(/\s+/g, '');
+        const content = message.content;
+        const lowerContent = content.toLowerCase();
+        const normalizedContent = lowerContent.replace(/\s+/g, '');
+
+        // ---- SHORTCUT: den$accept @user @role ----
+        if (lowerContent.startsWith('den$accept')) {
+            const isOwner = member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID);
+            if (!isOwner) return;
+
+            const args = content.split(' ');
+            const targetUser = message.mentions.users.first() || await client.users.fetch(args[1]).catch(() => null);
+            const targetRole = message.mentions.roles.first() || message.guild.roles.cache.find(r => r.name.toLowerCase().includes(args.slice(2).join(' ').toLowerCase()));
+
+            if (!targetUser || !targetRole) {
+                return message.reply('❌ **Usage:** `den$accept @user @role`').catch(() => {});
+            }
+
+            const acceptEmbed = new EmbedBuilder()
+                .setColor('#EAB308')
+                .setTitle('\uD83C\uDF89 Welcome to the Staff Team! \uD83C\uDF89')
+                .setThumbnail(targetUser.displayAvatarURL())
+                .setDescription(`Congratulations **${targetUser.username}**, you have been accepted as a staff member! \uD83D\uDE4C\n\n**Your Role:** ${targetRole}\n\n**Responsibilities:**\n\u2714\ufe0f Be respectful and professional \uD83D\ufe4C\n\u2714\ufe0f Follow all server rules \uD83D\uDCDA\n\u2714\ufe0f Maintain confidentiality \uD83D\uDD12\n\n**Next Steps:**\nYou will receive a DM shortly with full onboarding details. Welcome aboard! \uD83D\ude80`)
+                .setFooter({ text: 'DenClient Elite Staff System', iconURL: client.user.displayAvatarURL() })
+                .setTimestamp();
+
+            await message.channel.send({ content: `${targetUser}`, embeds: [acceptEmbed] });
+            await message.delete().catch(() => {});
+            return;
+        }
 
         // ---- OWNER SHORTCUT: den$close ----
-        if (content === 'den$close' && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID)) && (message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('apply-') || message.channel.name.includes('deal-'))) {
+        if (lowerContent === 'den$close' && (member.id === message.guild.ownerId || member.roles.cache.has(OWNER_ROLE_ID)) && (message.channel.name.startsWith('ticket-') || message.channel.name.startsWith('apply-') || message.channel.name.includes('deal-'))) {
             await message.delete().catch(() => {});
             
             const ticketData = client.tickets.get(message.channel.id);
@@ -53,7 +79,7 @@ module.exports = {
 
             const closeEmbed = new EmbedBuilder()
                 .setColor('#ED4245')
-                .setTitle('🔒 Instant Shutdown')
+                .setTitle('\uD83D\uDD12 Instant Shutdown')
                 .setDescription('This ticket has been instantly closed by the Server Owner. Deleting in **3 seconds**...')
                 .setTimestamp();
 
@@ -65,14 +91,14 @@ module.exports = {
                 if (logChannel) {
                     const transcriptEmbed = new EmbedBuilder()
                         .setColor('#ED4245')
-                        .setTitle('📄 Support Ticket Transcript (Owner Shortcut)')
+                        .setTitle('\uD83D\uDCC4 Support Ticket Transcript (Owner Shortcut)')
                         .addFields(
-                            { name: '👤 Requester', value: `${owner.tag || 'N/A'} (${ticketData?.ownerId || 'N/A'})`, inline: false },
-                            { name: '🙋‍♂️ Claimed By', value: `${claimer.tag || 'None'}`, inline: true },
-                            { name: '🔒 Closed By', value: `Owner (${message.author.tag})`, inline: true },
-                            { name: '📝 Reason', value: '`Instant Shutdown via Shortcut`', inline: false }
+                            { name: '\uD83D\uDC64 Requester', value: `${owner.tag || 'N/A'} (${ticketData?.ownerId || 'N/A'})`, inline: false },
+                            { name: '\uD83D\uDE4B\u200D\u2642\ufe0f Claimed By', value: `${claimer.tag || 'None'}`, inline: true },
+                            { name: '\uD83D\uDD12 Closed By', value: `Owner (${message.author.tag})`, inline: true },
+                            { name: '\uD83D\uDCDD Reason', value: '`Instant Shutdown via Shortcut`', inline: false }
                         )
-                        .setFooter({ text: 'DenClient Support System • Official Transcript' })
+                        .setFooter({ text: 'DenClient Support System \u2022 Official Transcript' })
                         .setTimestamp();
                     await logChannel.send({ embeds: [transcriptEmbed] });
                 }
@@ -83,12 +109,12 @@ module.exports = {
         }
 
         // ---- REAL AI SMART CONSOLE (Gemini): den-ai: or . ----
-        const isAIPrefix = content.startsWith('den-ai:') || content.startsWith('.');
+        const isAIPrefix = lowerContent.startsWith('den-ai:') || lowerContent.startsWith('.');
         if (isAIPrefix) {
             const isOwner = member.id === message.guild.ownerId || (OWNER_ROLE_ID && member.roles.cache.has(OWNER_ROLE_ID));
             if (!isOwner) return;
 
-            const query = content.replace('den-ai:', '').replace(/^\./, '').trim();
+            const query = lowerContent.replace('den-ai:', '').replace(/^\./, '').trim();
             if (!query) return;
 
             try {
@@ -189,7 +215,7 @@ module.exports = {
                 }
 
                 if (results.length > 0) {
-                    const summary = results.map(r => `✅ **Action:** ${r}`).join('\n');
+                    const summary = results.map(r => `\u2705 **Action:** ${r}`).join('\n');
                     await message.reply(summary).catch(() => {});
                 }
 
@@ -201,7 +227,7 @@ module.exports = {
                 return;
             } catch (error) {
                 console.error('AI Processing Error:', error);
-                await message.reply("❌ **Error:** I encountered a technical issue. Please try again.").catch(() => {});
+                await message.reply("\u274c **Error:** I encountered a technical issue. Please try again.").catch(() => {});
                 return;
             }
         }
@@ -255,13 +281,13 @@ module.exports = {
 
                 if (warns >= 3) {
                     await member.timeout(3600000, 'Language Policy Violation: 3 Warnings Reached (#chat-english)');
-                    await message.channel.send({ content: `🚫 ${message.author}, you have been timed out for **1 hour** for repeated language policy violations (English Only).` });
+                    await message.channel.send({ content: `\uD83D\uDEAB ${message.author}, you have been timed out for **1 hour** for repeated language policy violations (English Only).` });
                     langWarningMap.delete(userId);
                     await message.delete().catch(() => {});
                     return;
                 } else {
                     await message.delete().catch(() => {});
-                    const warnMsg = await message.channel.send({ content: `⚠️ ${message.author}, please speak **English only** in this channel. (Warning ${warns}/3)` });
+                    const warnMsg = await message.channel.send({ content: `\u26A0\ufe0f ${message.author}, please speak **English only** in this channel. (Warning ${warns}/3)` });
                     setTimeout(() => warnMsg.delete().catch(() => {}), 5000);
                     return;
                 }
@@ -276,18 +302,18 @@ module.exports = {
                 const warnEmbed = new EmbedBuilder()
                     .setColor('#ED4245')
                     .setAuthor({ name: 'Security Protocol: Highly Strict x100', iconURL: client.user.displayAvatarURL() })
-                    .setDescription(`🚫 ${message.author}, you have been timed out for **10 minutes**.\n**Reason:** ${violationType}`)
+                    .setDescription(`\uD83D\uDEAB ${message.author}, you have been timed out for **10 minutes**.\n**Reason:** ${violationType}`)
                     .setTimestamp();
                 await message.channel.send({ embeds: [warnEmbed] }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 10000));
                 await logger.log(client, message.guild, {
                     isMod: true,
                     isStrict: isStrictMember,
-                    title: '🛡️ Strict Security Violation',
+                    title: '\uD83D\uDEE1\ufe0f Strict Security Violation',
                     color: '#ED4245',
                     fields: [
-                        { name: '👤 User', value: `${message.author.tag}`, inline: true },
-                        { name: '⚖️ Action', value: '`10 Minute Timeout`', inline: true },
-                        { name: '⚠️ Violation', value: violationType, inline: true }
+                        { name: '\uD83D\uDC64 User', value: `${message.author.tag}`, inline: true },
+                        { name: '\u2696\ufe0f Action', value: '`10 Minute Timeout`', inline: true },
+                        { name: '\u26A0\ufe0f Violation', value: violationType, inline: true }
                     ]
                 });
             } catch (e) { console.error(e); }
@@ -310,7 +336,7 @@ module.exports = {
                 await member.timeout(600000, 'Anti-Spam Protocol');
                 const spamEmbed = new EmbedBuilder()
                     .setColor('#ED4245')
-                    .setDescription(`⚠️ ${message.author} has been timed out for **10 minutes** due to spamming.`)
+                    .setDescription(`\u26A0\ufe0f ${message.author} has been timed out for **10 minutes** due to spamming.`)
                     .setTimestamp();
                 await message.channel.send({ embeds: [spamEmbed] });
             } catch (e) { console.error(e); }

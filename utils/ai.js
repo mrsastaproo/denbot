@@ -14,7 +14,10 @@ AVAILABLE TOOLS:
 6. purge_messages: { "action": "purge_messages", "parameters": { "count": 10 } }
 7. kick_user / ban_user: { "action": "kick_user", "parameters": { "user": "name", "reason": "reason" } }
 
-RULES:
+HARDCODED SHORTCUTS (Use these directly in chat, do not use JSON for these):
+- den$accept @user @role : Instantly sends the premium Staff Acceptance embed to the user.
+- den$close : Instantly closes a support ticket.
+
 - Use prefix \u2502\uD83D\uDC8E- for high-tier channels.
 - Use prefix \u2502\uD83D\uDEE1- for staff/security channels.
 - Embed color is #EAB308.
