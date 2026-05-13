@@ -128,6 +128,13 @@ module.exports = {
                                 results.push(`📢 Sent premium embed to **#${target.name}**`);
 
                             // ─── CHANNEL MANAGEMENT ───────────────────────
+                            } else if (act.action === 'create_category') {
+                                const category = await message.guild.channels.create({
+                                    name: act.parameters?.name || 'New Category',
+                                    type: ChannelType.GuildCategory
+                                });
+                                results.push(`📂 Created category **${category.name}**`);
+
                             } else if (act.action === 'create_channel') {
                                 const typeMap = { 'text': ChannelType.GuildText, 'voice': ChannelType.GuildVoice, 'category': ChannelType.GuildCategory, 'stage': ChannelType.GuildStageVoice, 'forum': ChannelType.GuildForum };
                                 lastCreatedChannel = await message.guild.channels.create({
