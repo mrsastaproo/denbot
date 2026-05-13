@@ -1,5 +1,5 @@
 const { EmbedBuilder, PermissionsBitField, ChannelType, AuditLogEvent } = require('discord.js');
-const { processAIQuery } = require('../utils/ai');
+const { processAIQuery, moderateMessage } = require('../utils/ai');
 
 module.exports = {
     name: 'messageCreate',
@@ -12,6 +12,38 @@ module.exports = {
         
         const isAI = message.content.startsWith(prefix) || message.content.startsWith(queryPrefix);
         const isStaffCmd = message.content.startsWith(staffPrefix);
+        const isModeratedChannel = message.channel.id === client.config.strictLogChannel;
+        const isStaff = message.member.roles.cache.has(client.config.staffRole);
+
+        // --- Passive Moderation for English Chat ---
+        if (!isAI && !isStaffCmd && isModeratedChannel && !isStaff) {
+            try {
+                const modResult = await moderateMessage(message.content, message.author.tag, message.author.id);
+                
+                if (modResult.actions && modResult.actions.length > 0) {
+                    for (const act of modResult.actions) {
+                        try {
+                            if (act.action === 'delete_message') {
+                                await message.delete().catch(() => {});
+                            } else if (act.action === 'timeout') {
+                                const member = message.member || await message.guild.members.fetch(message.author.id);
+                                if (member && member.moderatable) {
+                                    await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
+                                }
+                            }
+                        } catch (e) { console.error('Mod Action Fail:', e.message); }
+                    }
+
+                    if (modResult.response) {
+                        const warnMsg = await message.channel.send(`⚠️ ${message.author}, ${modResult.response}`);
+                        setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+                    }
+                    return; // Stop processing further for this message
+                }
+            } catch (error) {
+                console.error('Moderation Error:', error);
+            }
+        }
 
         if (!isAI && !isStaffCmd) return;
 
@@ -36,11 +68,11 @@ module.exports = {
             const query = message.content.slice(message.content.startsWith(prefix) ? prefix.length : queryPrefix.length).trim();
             if (!query) return;
 
-            const typingMsg = await message.reply("\uD83D\uDD34 **DenClient Strategic Analysis in progress...**");
+            // Show native Discord typing indicator
+            await message.channel.sendTyping().catch(() => {});
 
             try {
                 const result = await processAIQuery(query, message.author.tag);
-                await typingMsg.delete().catch(() => {});
 
                 const results = [];
                 let lastCreatedChannel = null;
@@ -132,7 +164,7 @@ module.exports = {
             } catch (error) {
                 console.error('AI Fatal Error:', error);
                 const errorMsg = error.message.includes('JSON') ? 'Invalid response format from AI.' : 'Infrastructure issue detected.';
-                await typingMsg.edit(`\u274c **Strategic Analysis Failed.** ${errorMsg}`).catch(() => {});
+                await message.reply(`\u274c **Strategic Analysis Failed.** ${errorMsg}`).catch(() => {});
             }
         }
     }

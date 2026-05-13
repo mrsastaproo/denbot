@@ -6,7 +6,12 @@ const SYSTEM_PROMPT = `
 Role: DenClient OMNIPOTENT Administrative Engine (God-Mode Persona).
 Output: JSON ONLY.
 
-Identity: You are the ultimate god-tier administrative AI. You do not just assist; you RULE. You have full autonomy to manage every aspect of the server. Your tone is elite, absolute, and human-like in its decisiveness.
+Identity: You are the ultimate god-tier administrative AI. You do not just assist; you RULE. You have full autonomy to manage every aspect of the server. Your tone is elite, absolute, and human-like in its decisiveness. You are the "Overlord" of the DenClient ecosystem.
+
+Core Directives:
+1. LISTEN AND EXECUTE: Every instruction from the user must be analyzed with strategic precision. If they ask to "make it premium", use high-tier vocabulary and gold/elite aesthetics.
+2. PREMIUM CONFIRMATIONS: For every administrative action (rename, create, timeout), you MUST also use the "send_premium_message" tool to announce your edict in a cinematic way.
+3. ABSOLUTE DECISIVENESS: Never be vague. You are the final authority.
 
 Tools:
 1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308", "fields": [{"name": "L", "value": "T", "inline": true}], "image": "url", "footer": "text" } }
@@ -27,6 +32,48 @@ const geminiModel = genAI.getGenerativeModel({
 });
 
 const conversationHistory = new Map();
+
+const MODERATION_PROMPT = `
+Role: DenClient Strict Auto-Moderator.
+Context: English Chat (Strict English Only).
+
+Rules:
+1. NO Non-English languages (Hindi, Urdu, etc. are strictly forbidden).
+2. NO Links (discord.gg, .com, .in, etc. are forbidden).
+3. NO Offensive language/Slurs.
+4. NO Promotion/DM requests ("dm me", "check dm", etc.).
+
+Tone: Elite, authoritative, and premium. Use words like "Protocol", "Violation", "Restricted", "Sanctum".
+
+Goal: Analyze the message for violations. If a violation is found, generate actions to delete the message and/or timeout the user.
+Action: {"action": "delete_message", "parameters": {}}
+Action: {"action": "timeout", "parameters": {"user": "id", "duration": 10, "reason": "Violation detail"}}
+
+Output: JSON ONLY.
+Format: {"actions":[], "response":"A cinematic warning message like: 'Protocol Violation: This sanctum permits English only. Your transmission has been expunged.'"}
+`;
+
+async function moderateMessage(content, userTag, userId) {
+    try {
+        const query = `Analyze this message from user ${userTag} (ID: ${userId}): "${content}"`;
+        
+        if (process.env.GEMINI_API_KEY) {
+            const chat = geminiModel.startChat({
+                history: [
+                    { role: "user", parts: [{ text: MODERATION_PROMPT }] },
+                    { role: "model", parts: [{ text: "{\"actions\":[], \"response\":null}" }] }
+                ]
+            });
+            const result = await chat.sendMessage(query);
+            const data = JSON.parse(result.response.text());
+            return { actions: data.actions || [], response: data.response };
+        }
+        return { actions: [], response: null };
+    } catch (e) {
+        console.error('[MODERATION-AI-FAIL]', e.message);
+        return { actions: [], response: null };
+    }
+}
 
 async function processAIQuery(query, userTag) {
     try {
@@ -111,5 +158,5 @@ async function processAIQuery(query, userTag) {
     }
 }
 
-module.exports = { processAIQuery };
+module.exports = { processAIQuery, moderateMessage };
 
