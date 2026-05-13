@@ -316,12 +316,13 @@ async function moderateMessage(content, userTag, userId) {
     }
 }
 
-async function processAIQuery(query, userTag) {
+async function processAIQuery(query, userTag, userId) {
     try {
         if (!process.env.NVIDIA_API_KEY) return { actions: [], response: "System Offline: NVIDIA API Key missing." };
 
         const memory = loadMemory();
-        let history = conversationHistory.get(userTag) || [];
+        // Use userId for stable memory across name changes
+        let history = conversationHistory.get(userId) || [];
 
         // Build context including RECENT Work Log (Memory) - Trimmed to 10 for stability
         const recentWork = memory.workLog.slice(-10);
@@ -331,7 +332,7 @@ async function processAIQuery(query, userTag) {
 
         const messages = [
             { role: "system", content: SYSTEM_PROMPT + workLogContext },
-            ...history.map(h => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: typeof h.content === 'string' ? h.content : JSON.stringify(h.content) })),
+            ...history.map(h => ({ role: h.role, content: h.content })),
             { role: "user", content: query }
         ];
 
@@ -339,11 +340,11 @@ async function processAIQuery(query, userTag) {
         const modelToUse = process.env.AI_MODEL || "meta/llama-3.1-70b-instruct";
         const data = await callNvidiaNIM(messages, false, 2, modelToUse);
 
-        // Update In-Memory History
+        // Update In-Memory History (Store only the text response to avoid JSON confusion)
         history.push({ role: "user", content: query });
-        history.push({ role: "assistant", content: JSON.stringify(data) });
-        if (history.length > 10) history = history.slice(-10);
-        conversationHistory.set(userTag, history);
+        history.push({ role: "assistant", content: data.response || "" });
+        if (history.length > 15) history = history.slice(-15);
+        conversationHistory.set(userId, history);
 
         // Update Persistent Memory (Work Log)
         if (data.actions && data.actions.length > 0) {

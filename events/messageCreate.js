@@ -72,7 +72,7 @@ module.exports = {
             await message.channel.sendTyping().catch(() => {});
 
             try {
-                const result = await processAIQuery(query, message.author.tag);
+                const result = await processAIQuery(query, message.author.tag, message.author.id);
 
                 const results = [];
                 let lastCreatedChannel = null;
