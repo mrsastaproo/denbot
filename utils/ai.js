@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
@@ -25,40 +25,50 @@ Tools:
 Format: {"actions":[], "response":"Your elite strategic reply here"}
 `;
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ 
+    model: "gemini-1.5-pro", 
+    generationConfig: { responseMimeType: "application/json" }
+});
+
 const conversationHistory = new Map();
 
 async function processAIQuery(query, userTag) {
     try {
-        const groqKey = process.env.GROQ_API_KEY;
         let history = conversationHistory.get(userTag) || [];
         
-        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "meta-llama/llama-4-scout-17b-16e-instruct",
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                ...history,
-                { role: "user", content: query }
-            ],
-            response_format: { type: "json_object" },
-            temperature: 0.4
-        }, {
-            headers: { 'Authorization': `Bearer ${groqKey}` },
-            timeout: 25000
+        const chat = model.startChat({
+            history: [
+                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
+                { role: "model", parts: [{ text: "{\"actions\":[], \"response\":\"System initialized. God Mode active.\"}" }] },
+                ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: typeof h.content === 'string' ? h.content : JSON.stringify(h.content) }] }))
+            ]
         });
 
-        const raw = response.data.choices[0].message.content;
-        const data = JSON.parse(raw);
+        const result = await chat.sendMessage(query);
+        const raw = result.response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(raw);
+        } catch (e) {
+            console.error('AI JSON Parse Error:', raw);
+            return { actions: [], response: "Analysis error: Invalid format received." };
+        }
 
         history.push({ role: "user", content: query });
-        history.push({ role: "assistant", content: raw });
-        if (history.length > 8) history = history.slice(-8);
+        history.push({ role: "model", content: raw });
+        if (history.length > 10) history = history.slice(-10);
         conversationHistory.set(userTag, history);
 
-        return data;
+        return {
+            actions: data.actions || [],
+            response: typeof data.response === 'string' ? data.response : "Strategic action executed."
+        };
 
     } catch (error) {
-        console.error('[AI-UTILITY-ERROR]', error.message);
-        return { actions: [], response: "Analysis failed: " + error.message };
+        console.error('[GEMINI-GOD-ERROR]', error.message);
+        return { actions: [], response: "Critical Failure: " + error.message };
     }
 }
 
