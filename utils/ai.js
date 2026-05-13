@@ -238,7 +238,8 @@ If clean, return: {"actions": [], "response": null}`;
             { role: "user", content: content }
         ];
 
-        const data = await callNvidiaNIM(messages, true);
+        // Moderation needs high reasoning for language detection; use 70B (it's a small prompt so no 500 errors)
+        const data = await callNvidiaNIM(messages, true, 2, "meta/llama-3.1-70b-instruct");
         return data || { actions: [], response: null };
     } catch (error) {
         return { actions: [], response: null };

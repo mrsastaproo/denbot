@@ -13,7 +13,7 @@ module.exports = {
         const isAI = message.content.startsWith(prefix) || message.content.startsWith(queryPrefix);
         const isStaffCmd = message.content.startsWith(staffPrefix);
         const isModeratedChannel = message.channel.id === client.config.strictLogChannel;
-        const isStaff = message.member.roles.cache.has(client.config.staffRole);
+        const isStaff = message.member.permissions.has('Administrator') || message.member.roles.cache.has(client.config.staffRole);
 
         // --- Passive Moderation for All Channels (Special rules for English Chat) ---
         if (!isAI && !isStaffCmd && !isStaff) {
