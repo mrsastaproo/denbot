@@ -204,11 +204,24 @@ module.exports = {
                         } else if (act.action === 'kick_user' || act.action === 'ban_user') {
                             const isBan = act.action === 'ban_user';
                             const targetInput = String(act.parameters?.user || '');
-                            const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput);
+                            const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput || m.user.username.includes(targetInput));
                             if (targetMember && targetMember.moderatable) {
                                 if (isBan) await targetMember.ban({ reason: act.parameters?.reason }).catch(() => {});
                                 else await targetMember.kick(act.parameters?.reason).catch(() => {});
                                 results.push(`${isBan ? 'Banned' : 'Kicked'} ${targetMember.user.tag}`);
+                            }
+                        } else if (act.action === 'add_role' || act.action === 'remove_role') {
+                            const isAdd = act.action === 'add_role';
+                            const targetInput = String(act.parameters?.user || '');
+                            const roleInput = String(act.parameters?.role || '');
+                            
+                            const targetMember = message.guild.members.cache.find(m => m.user.tag.includes(targetInput) || m.id === targetInput || m.user.username.includes(targetInput));
+                            const targetRole = message.guild.roles.cache.find(r => r.id === roleInput || r.name.toLowerCase().includes(roleInput.toLowerCase()));
+                            
+                            if (targetMember && targetRole) {
+                                if (isAdd) await targetMember.roles.add(targetRole).catch(e => console.error('Role Add Fail:', e.message));
+                                else await targetMember.roles.remove(targetRole).catch(e => console.error('Role Remove Fail:', e.message));
+                                results.push(`${isAdd ? 'Assigned' : 'Removed'} role \`${targetRole.name}\` to/from ${targetMember.user.tag}`);
                             }
                         }
                     } catch (err) { console.error(err); }
