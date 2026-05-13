@@ -153,14 +153,26 @@ module.exports = {
                             results.push(`Sent message to ${target.name}`);
                         } else if (act.action === 'send_premium_message') {
                             const target = findChannel(act.parameters?.channel) || lastCreatedChannel || message.channel;
-                            const premiumEmbed = new EmbedBuilder()
+                            const embed = new EmbedBuilder()
                                 .setColor(act.parameters.color || '#EAB308')
                                 .setTitle(act.parameters.title || 'DenClient Notification')
                                 .setDescription(act.parameters.content || act.parameters.description || '...')
-                                .setThumbnail(act.parameters.thumbnail || client.user.displayAvatarURL())
-                                .setFooter({ text: 'DenClient Elite System', iconURL: client.user.displayAvatarURL() })
                                 .setTimestamp();
-                            await target.send({ embeds: [premiumEmbed] }).catch(() => {});
+
+                            if (act.parameters?.thumbnail) embed.setThumbnail(act.parameters.thumbnail);
+                            if (act.parameters?.image) embed.setImage(act.parameters.image);
+                            if (act.parameters?.footer) embed.setFooter({ text: act.parameters.footer, iconURL: client.user.displayAvatarURL() });
+                            else embed.setFooter({ text: 'DenClient Elite System', iconURL: client.user.displayAvatarURL() });
+                            
+                            if (act.parameters?.author) embed.setAuthor({ name: act.parameters.author, iconURL: client.user.displayAvatarURL() });
+                            
+                            if (Array.isArray(act.parameters?.fields)) {
+                                act.parameters.fields.forEach(f => {
+                                    if (f.name && f.value) embed.addFields({ name: f.name, value: f.value, inline: !!f.inline });
+                                });
+                            }
+
+                            await target.send({ embeds: [embed] }).catch(() => {});
                             results.push(`Sent premium embed to ${target.name}`);
                         } else if (act.action === 'create_private_channel') {
                             const categoryInput = act.parameters?.category;
