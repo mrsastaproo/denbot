@@ -15,10 +15,9 @@ Format: {"actions":[],"response":"reply"}
 `;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// Switching to Gemini 1.5 Pro as requested. 
-// Note: Some free tier projects have a daily request limit.
+// Using 'gemini-flash-latest' to avoid 404 errors in 2026
 const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-pro", 
+    model: "gemini-flash-latest", 
     generationConfig: { responseMimeType: "application/json" }
 });
 
