@@ -16,9 +16,15 @@ module.exports = {
         const isStaff = message.member.permissions.has('Administrator') || message.member.roles.cache.has(client.config.staffRole);
 
         // --- Passive Moderation for All Channels (Special rules for English Chat) ---
+        const isEnglishChatID = message.channel.id === '1503896954038517840';
         if (!isAI && !isStaffCmd && !isStaff) {
             try {
-                const modResult = await moderateMessage(message.content, message.channel.name);
+                // Pass a flag to enforce English moderation if the ID matches OR the name contains 'english'
+                const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
+                console.log(`[MOD-CHECK] Channel: #${message.channel.name} (${message.channel.id}), Force English: ${forceEnglish}`);
+                
+                const modResult = await moderateMessage(message.content, forceEnglish ? "english" : message.channel.name);
+                console.log(`[MOD-RESULT] Actions: ${modResult.actions?.length || 0}`);
                 
                 if (modResult.actions && modResult.actions.length > 0) {
                     for (const act of modResult.actions) {

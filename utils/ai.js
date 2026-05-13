@@ -240,6 +240,7 @@ If clean, return: {"actions": [], "response": null}`;
 
         // Moderation needs high reasoning for language detection; use 70B (it's a small prompt so no 500 errors)
         const data = await callNvidiaNIM(messages, true, 2, "meta/llama-3.1-70b-instruct");
+        console.log(`[AI-MOD-DATA] Result for "${content.slice(0, 20)}...":`, JSON.stringify(data));
         return data || { actions: [], response: null };
     } catch (error) {
         return { actions: [], response: null };
