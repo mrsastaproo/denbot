@@ -21,7 +21,7 @@ async function processAIQuery(query, userTag) {
         let history = conversationHistory.get(userTag) || [];
         
         const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-            model: "llama-3.1-70b-versatile", // High intelligence + Unlimited daily capacity
+            model: "llama-3.3-70b-versatile", // Updated for 2026 compatibility
             messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...history,
