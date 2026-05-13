@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionsBitField, ChannelType, AuditLogEvent } = require('discord.js');
-const { processAIQuery, moderateMessage } = require('../utils/ai');
+const { moderateMessage, processAIQuery } = require('../utils/ai');
+const { fastModerate } = require('../utils/moderation');
 
 module.exports = {
     name: 'messageCreate',
@@ -15,42 +16,35 @@ module.exports = {
         const isModeratedChannel = message.channel.id === client.config.strictLogChannel;
         const isStaff = message.member.permissions.has('Administrator') || message.member.roles.cache.has(client.config.staffRole);
 
-        // --- Passive Moderation for All Channels (Special rules for English Chat) ---
+        // --- Instant Code-Based Moderation (No AI Delay) ---
         const isEnglishChatID = message.channel.id === '1503896954038517840';
         const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
         
         if (!isAI && !isStaffCmd && !isStaff) {
-            try {
-                console.log(`[MOD-CHECK] Channel: #${message.channel.name} (${message.channel.id}), Force English: ${forceEnglish}`);
-                
-                const modResult = await moderateMessage(message.content, forceEnglish ? "english" : message.channel.name);
-                console.log(`[MOD-RESULT] Actions: ${modResult.actions?.length || 0}`);
-                
-                if (modResult.actions && modResult.actions.length > 0) {
-                    for (const act of modResult.actions) {
-                        try {
-                            if (act.action === 'delete_message') {
-                                await message.delete().catch(() => {});
-                            } else if (act.action === 'timeout') {
-                                const member = message.member || await message.guild.members.fetch(message.author.id);
-                                if (member && member.moderatable) {
-                                    await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
-                                }
+            const modResult = fastModerate(message.content, forceEnglish ? "english" : message.channel.name);
+            
+            if (modResult.actions && modResult.actions.length > 0) {
+                for (const act of modResult.actions) {
+                    try {
+                        if (act.action === 'delete_message') {
+                            await message.delete().catch(() => {});
+                        } else if (act.action === 'timeout') {
+                            const member = message.member || await message.guild.members.fetch(message.author.id);
+                            if (member && member.moderatable) {
+                                await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
                             }
-                        } catch (e) { console.error('Mod Action Fail:', e.message); }
-                    }
-
-                    if (modResult.response) {
-                        const warnMsg = await message.channel.send(`⚠️ ${message.author}, ${modResult.response}`);
-                        setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
-                    }
-                    return; // Stop processing further for this message
+                        }
+                    } catch (e) { console.error('Mod Action Fail:', e.message); }
                 }
-            } catch (error) {
-                console.error('Moderation Error:', error);
+
+                if (modResult.response) {
+                    const warnMsg = await message.channel.send(`⚠️ ${message.author}, ${modResult.response}`);
+                    setTimeout(() => warnMsg.delete().catch(() => {}), 10000);
+                }
+                return; // Stop processing further for this message
             }
         } else if (!isAI && !isStaffCmd && isStaff && forceEnglish) {
-            console.log(`[MOD-SKIP] Skipping moderation for Staff: ${message.author.tag}`);
+            // Optional: Still check for links even for staff? No, user said don't activate if . isn't used.
         }
 
         if (!isAI && !isStaffCmd) return;
