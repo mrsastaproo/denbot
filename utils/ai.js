@@ -55,7 +55,7 @@ async function processAIQuery(query, userTag) {
 
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: JSON.stringify(data) });
-        if (history.length > 10) history = history.slice(-10);
+        if (history.length > 4) history = history.slice(-4);
         conversationHistory.set(userTag, history);
 
         return data;
