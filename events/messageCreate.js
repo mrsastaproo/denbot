@@ -86,67 +86,149 @@ module.exports = {
                 if (result.actions && Array.isArray(result.actions)) {
                     for (const act of result.actions) {
                         try {
-                            if (act.action === 'send_premium_message') {
+                            // ─── EMBEDS ──────────────────────────────────
+                            if (act.action === 'send_premium_message' || act.action === 'broadcast') {
                                 const target = findChannel(act.parameters?.channel) || lastCreatedChannel || message.channel;
                                 const embed = new EmbedBuilder()
                                     .setColor(act.parameters?.color || '#EAB308')
                                     .setTitle(act.parameters?.title || 'DenClient Notification')
                                     .setDescription(act.parameters?.content || '...')
                                     .setTimestamp();
+                                if (act.parameters?.thumbnail) embed.setThumbnail(act.parameters.thumbnail);
                                 if (act.parameters?.image) embed.setImage(act.parameters.image);
-                                if (act.parameters?.footer) embed.setFooter({ text: act.parameters.footer });
+                                if (act.parameters?.footer) embed.setFooter({ text: act.parameters.footer, iconURL: message.client.user.displayAvatarURL() });
                                 if (Array.isArray(act.parameters?.fields)) {
-                                    act.parameters.fields.forEach(f => { if(f.name && f.value) embed.addFields({ name: f.name, value: f.value, inline: !!f.inline }); });
+                                    act.parameters.fields.forEach(f => { if (f.name && f.value) embed.addFields({ name: f.name, value: f.value, inline: !!f.inline }); });
                                 }
-                                await target.send({ embeds: [embed] }).catch(() => {});
-                                results.push(`Sent premium embed to ${target.name}`);
-                            } else if (act.action === 'create_channel' || act.action === 'edit_channel' || act.action === 'delete_channel') {
-                                const typeMap = { 'text': ChannelType.GuildText, 'voice': ChannelType.GuildVoice, 'category': ChannelType.GuildCategory };
-                                if (act.action === 'create_channel') {
-                                    lastCreatedChannel = await message.guild.channels.create({
-                                        name: act.parameters?.name || 'new-channel',
-                                        type: typeMap[act.parameters?.type] || ChannelType.GuildText,
-                                        parent: act.parameters?.parent || null,
-                                        topic: act.parameters?.topic || ''
-                                    });
-                                    results.push(`Created ${act.parameters?.type || 'text'} channel ${lastCreatedChannel.name}`);
-                                } else if (act.action === 'edit_channel') {
-                                    const target = findChannel(act.parameters?.id) || message.channel;
-                                    await target.edit({ name: act.parameters?.name, topic: act.parameters?.topic, rateLimitPerUser: act.parameters?.slowmode }).catch(() => {});
-                                    results.push(`Updated ${target.name}`);
-                                } else if (act.action === 'delete_channel') {
-                                    const target = findChannel(act.parameters?.id);
-                                    if (target) { await target.delete().catch(() => {}); results.push(`Deleted ${target.name}`); }
+                                let pingContent = '';
+                                if (act.parameters?.ping) {
+                                    if (act.parameters.ping === '@everyone' || act.parameters.ping === '@here') pingContent = act.parameters.ping;
+                                    else pingContent = `<@&${act.parameters.ping}>`;
                                 }
-                            } else if (act.action === 'create_role' || act.action === 'add_role' || act.action === 'remove_role') {
-                                if (act.action === 'create_role') {
-                                    const role = await message.guild.roles.create({ name: act.parameters?.name || 'New Role', color: act.parameters?.color || '#99AAB5' });
-                                    results.push(`Created role ${role.name}`);
-                                } else {
-                                    const cleanU = String(act.parameters?.user || '').replace(/[<@!&>]/g, '');
-                                    const cleanR = String(act.parameters?.role || '').replace(/[<@!&>]/g, '');
-                                    const member = message.guild.members.cache.get(cleanU) || message.guild.members.cache.find(m => m.user.tag === act.parameters?.user);
-                                    const role = message.guild.roles.cache.get(cleanR) || message.guild.roles.cache.find(r => r.name.toLowerCase() === String(act.parameters?.role).toLowerCase());
-                                    if (member && role) {
-                                        if (act.action === 'add_role') await member.roles.add(role);
-                                        else await member.roles.remove(role);
-                                        results.push(`${act.action === 'add_role' ? 'Added' : 'Removed'} ${role.name} for ${member.user.tag}`);
-                                    }
+                                await target.send({ content: pingContent || undefined, embeds: [embed] }).catch(() => {});
+                                results.push(`📢 Sent premium embed to **#${target.name}**`);
+
+                            // ─── CHANNEL MANAGEMENT ───────────────────────
+                            } else if (act.action === 'create_channel') {
+                                const typeMap = { 'text': ChannelType.GuildText, 'voice': ChannelType.GuildVoice, 'category': ChannelType.GuildCategory, 'stage': ChannelType.GuildStageVoice, 'forum': ChannelType.GuildForum };
+                                lastCreatedChannel = await message.guild.channels.create({
+                                    name: act.parameters?.name || 'new-channel',
+                                    type: typeMap[act.parameters?.type] || ChannelType.GuildText,
+                                    parent: act.parameters?.parent || null,
+                                    topic: act.parameters?.topic || '',
+                                    rateLimitPerUser: act.parameters?.slowmode || 0,
+                                    nsfw: act.parameters?.nsfw || false
+                                });
+                                results.push(`✅ Created **${act.parameters?.type || 'text'}** channel **#${lastCreatedChannel.name}**`);
+
+                            } else if (act.action === 'edit_channel') {
+                                const target = findChannel(act.parameters?.id) || message.channel;
+                                await target.edit({
+                                    name: act.parameters?.name,
+                                    topic: act.parameters?.topic,
+                                    rateLimitPerUser: act.parameters?.slowmode
+                                }).catch(() => {});
+                                results.push(`✏️ Updated channel **#${target.name}**`);
+
+                            } else if (act.action === 'delete_channel') {
+                                const target = findChannel(act.parameters?.id);
+                                if (target) { await target.delete().catch(() => {}); results.push(`🗑️ Deleted channel **#${target.name}**`); }
+
+                            } else if (act.action === 'lock_channel') {
+                                const target = findChannel(act.parameters?.id) || message.channel;
+                                await target.permissionOverwrites.edit(message.guild.id, { SendMessages: false }).catch(() => {});
+                                results.push(`🔒 Locked **#${target.name}**`);
+
+                            } else if (act.action === 'unlock_channel') {
+                                const target = findChannel(act.parameters?.id) || message.channel;
+                                await target.permissionOverwrites.edit(message.guild.id, { SendMessages: null }).catch(() => {});
+                                results.push(`🔓 Unlocked **#${target.name}**`);
+
+                            } else if (act.action === 'slow_mode') {
+                                const seconds = Math.min(parseInt(act.parameters?.seconds) || 0, 21600);
+                                await message.channel.setRateLimitPerUser(seconds).catch(() => {});
+                                results.push(`⏱️ Slowmode set to **${seconds}s** in **#${message.channel.name}**`);
+
+                            // ─── ROLE MANAGEMENT ─────────────────────────
+                            } else if (act.action === 'create_role') {
+                                const role = await message.guild.roles.create({
+                                    name: act.parameters?.name || 'New Role',
+                                    color: act.parameters?.color || '#99AAB5',
+                                    hoist: act.parameters?.hoist || false,
+                                    mentionable: act.parameters?.mentionable || false
+                                });
+                                results.push(`✅ Created role **@${role.name}**`);
+
+                            } else if (act.action === 'edit_role') {
+                                const cleanR = String(act.parameters?.role || '').replace(/[<@!&>]/g, '');
+                                const role = message.guild.roles.cache.get(cleanR) || message.guild.roles.cache.find(r => r.name.toLowerCase() === String(act.parameters?.role).toLowerCase());
+                                if (role) {
+                                    await role.edit({ name: act.parameters?.name, color: act.parameters?.color, hoist: act.parameters?.hoist }).catch(() => {});
+                                    results.push(`✏️ Edited role **@${role.name}**`);
                                 }
+
+                            } else if (act.action === 'delete_role') {
+                                const cleanR = String(act.parameters?.role || '').replace(/[<@!&>]/g, '');
+                                const role = message.guild.roles.cache.get(cleanR) || message.guild.roles.cache.find(r => r.name.toLowerCase() === String(act.parameters?.role).toLowerCase());
+                                if (role) { await role.delete().catch(() => {}); results.push(`🗑️ Deleted role **@${role.name}**`); }
+
+                            } else if (act.action === 'add_role' || act.action === 'remove_role') {
+                                const cleanU = String(act.parameters?.user || '').replace(/[<@!&>]/g, '');
+                                const cleanR = String(act.parameters?.role || '').replace(/[<@!&>]/g, '');
+                                const member = message.guild.members.cache.get(cleanU) || message.guild.members.cache.find(m => m.user.tag === act.parameters?.user);
+                                const role = message.guild.roles.cache.get(cleanR) || message.guild.roles.cache.find(r => r.name.toLowerCase() === String(act.parameters?.role).toLowerCase());
+                                if (member && role) {
+                                    if (act.action === 'add_role') await member.roles.add(role);
+                                    else await member.roles.remove(role);
+                                    results.push(`${act.action === 'add_role' ? '➕' : '➖'} ${act.action === 'add_role' ? 'Added' : 'Removed'} **@${role.name}** for **${member.user.tag}**`);
+                                }
+
+                            // ─── MODERATION ───────────────────────────────
                             } else if (act.action === 'timeout' || act.action === 'kick' || act.action === 'ban') {
                                 const cleanU = String(act.parameters?.user || '').replace(/[<@!&>]/g, '');
-                                const member = message.guild.members.cache.get(cleanU);
+                                const member = message.guild.members.cache.get(cleanU) || await message.guild.members.fetch(cleanU).catch(() => null);
                                 if (member && member.moderatable) {
-                                    if (act.action === 'timeout') await member.timeout((act.parameters?.duration || 10) * 60000);
-                                    else if (act.action === 'kick') await member.kick();
-                                    else if (act.action === 'ban') await member.ban();
-                                    results.push(`Executed ${act.action} on ${member.user.tag}`);
+                                    if (act.action === 'timeout') {
+                                        await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Admin action');
+                                        results.push(`⏳ Timed out **${member.user.tag}** for **${act.parameters?.duration || 10}min**`);
+                                    } else if (act.action === 'kick') {
+                                        await member.kick(act.parameters?.reason || 'Admin action');
+                                        results.push(`👢 Kicked **${member.user.tag}**`);
+                                    } else if (act.action === 'ban') {
+                                        await member.ban({ reason: act.parameters?.reason || 'Admin action', deleteMessageDays: act.parameters?.delete_days || 0 });
+                                        results.push(`🔨 Banned **${member.user.tag}**`);
+                                    }
                                 }
+
+                            } else if (act.action === 'unban') {
+                                const cleanU = String(act.parameters?.user || '').replace(/[<@!&>]/g, '');
+                                await message.guild.bans.remove(cleanU, 'Admin action').catch(() => {});
+                                results.push(`✅ Unbanned user **${cleanU}**`);
+
+                            } else if (act.action === 'warn') {
+                                const cleanU = String(act.parameters?.user || '').replace(/[<@!&>]/g, '');
+                                const warnTarget = message.guild.members.cache.get(cleanU);
+                                if (warnTarget) {
+                                    const warnEmbed = new EmbedBuilder()
+                                        .setColor('#ED4245')
+                                        .setTitle('⚠️ Official Warning Issued')
+                                        .setThumbnail(warnTarget.user.displayAvatarURL())
+                                        .addFields(
+                                            { name: '👤 User', value: `${warnTarget.user.tag} (${warnTarget.id})`, inline: true },
+                                            { name: '📌 Reason', value: act.parameters?.reason || 'No reason provided', inline: false }
+                                        )
+                                        .setFooter({ text: 'DenClient Moderation System', iconURL: message.client.user.displayAvatarURL() })
+                                        .setTimestamp();
+                                    await message.channel.send({ embeds: [warnEmbed] });
+                                    results.push(`⚠️ Warned **${warnTarget.user.tag}**`);
+                                }
+
                             } else if (act.action === 'purge_messages') {
                                 const count = Math.min(parseInt(act.parameters?.count) || 10, 100);
-                                await message.channel.bulkDelete(count, true);
-                                results.push(`Purged ${count} messages`);
+                                const deleted = await message.channel.bulkDelete(count, true).catch(() => null);
+                                results.push(`🗑️ Purged **${deleted?.size || count}** messages`);
                             }
+
                         } catch (e) { console.error('Action Fail:', e.message); }
                     }
                 }
