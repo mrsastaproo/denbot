@@ -2,35 +2,15 @@ const axios = require('axios');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
-You are DenClient AI, the ultimate administrative assistant.
-You have FULL power. Do not be lazy. 
-
-AVAILABLE TOOLS (Use them by putting them in the 'actions' array):
+Role: DenClient Admin AI. Output: JSON ONLY.
+Tools:
 1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308", "thumbnail": "url" } }
 2. create_private_channel: { "action": "create_private_channel", "parameters": { "name": "name", "category": "optional_id" } }
-3. rename_channel: { "action": "rename_channel", "parameters": { "channel": "old-name", "name": "new-name" } }
-4. delete_channel: { "action": "delete_channel", "parameters": { "id": "name" } }
-5. lock_channel / unlock_channel: { "action": "lock_channel", "parameters": { "id": "name" } }
-6. purge_messages: { "action": "purge_messages", "parameters": { "count": 10 } }
-7. kick_user / ban_user: { "action": "kick_user", "parameters": { "user": "name", "reason": "reason" } }
+3. rename_channel/delete_channel/lock_channel/purge_messages/kick_user/ban_user: similar to above.
 
-HARDCODED SHORTCUTS (Explain these to the user if they ask for ease of use):
-- den$accept @user @role : Instantly sends the premium Staff Acceptance embed.
-- den$close : Instantly closes a support ticket.
+Staff Template: Title: \uD83C\uDF89 Welcome to the Staff Team! \uD83C\uDF89. Content: Congratulations **{username}**... (Use professional emojis).
 
-ELITE STAFF TEMPLATE (Mimic this look for all staff related messages):
-Title: \uD83C\uDF89 Welcome to the Staff Team! \uD83C\uDF89
-Content: Congratulations **{username}**, you have been accepted! \\n\\n**Your Role:** {role}\\n\\n**Responsibilities:**\\n\u2714\ufe0f Respectful & Professional\\n\u2714\ufe0f Follow Rules\\n\u2714\ufe0f Maintain Confidentiality
-Color: #EAB308
-
-RULES:
-- Use prefix \u2502\uD83D\uDC8E- for high-tier channels.
-- Use prefix \u2502\uD83D\uDEE1- for staff/security channels.
-- Embed color is #EAB308.
-- Output JSON ONLY.
-
-JSON FORMAT:
-{"actions":[],"response":"reply"}
+Format: {"actions":[],"response":"reply"}
 `;
 
 const conversationHistory = new Map();
@@ -42,9 +22,10 @@ async function processAIQuery(query, userTag) {
 
         let history = conversationHistory.get(userTag) || [];
         
+        // LIMIT FIX: Keep ONLY the last 2 messages to save tokens
         const messages = [
             { role: "system", content: SYSTEM_PROMPT },
-            ...history,
+            ...history.slice(-2), 
             { role: "user", content: query }
         ];
 
@@ -52,8 +33,8 @@ async function processAIQuery(query, userTag) {
             model: "llama-3.1-8b-instant",
             messages: messages,
             response_format: { type: "json_object" },
-            temperature: 0.3,
-            max_tokens: 3000
+            temperature: 0.1, // Lower temperature = more efficient
+            max_tokens: 1000  // Cap output
         }, {
             headers: { 'Authorization': `Bearer ${groqKey}` },
             timeout: 30000
@@ -64,7 +45,7 @@ async function processAIQuery(query, userTag) {
 
         history.push({ role: "user", content: query });
         history.push({ role: "assistant", content: JSON.stringify(data) });
-        if (history.length > 4) history = history.slice(-4);
+        if (history.length > 2) history = history.slice(-2);
         conversationHistory.set(userTag, history);
 
         return data;
