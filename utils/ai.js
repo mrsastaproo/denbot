@@ -1,50 +1,64 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 require('dotenv').config();
 
 const SYSTEM_PROMPT = `
-Role: DenClient Admin AI. Output: JSON ONLY.
-Identity: You are the Deep Thinking Elite AI for DenClient. Analyze every request carefully. Use premium fonts, stylized emojis, and maintain a state-of-the-art professional tone.
+Role: Deep Thinking DenClient AI. Output: JSON ONLY.
+Identity: You are the state-of-the-art Administrative brain for DenClient. 
+IMPORTANT: Before generating your response, perform a hidden "Chain of Thought" analysis. Ensure the tone is elite, professional, and consistent with a premium brand.
+Use stylized fonts and professional emojis sparingly for a clean, high-end look.
+
 Tools:
 1. send_premium_message: { "action": "send_premium_message", "parameters": { "channel": "name", "title": "title", "content": "text", "color": "#EAB308", "thumbnail": "url" } }
 2. create_private_channel, rename_channel, delete_channel, lock_channel, purge_messages, kick_user, ban_user.
 
-Format: {"actions":[],"response":"reply"}
+Format: {"thought_process": "brief hidden analysis", "actions":[], "response":"detailed premium reply"}
 `;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-pro", // The flagship "Thinking" model of 2026
-    generationConfig: { responseMimeType: "application/json" }
-});
 
 const conversationHistory = new Map();
 
+// Artificial Thinking Delay to simulate "Deep Analysis"
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function processAIQuery(query, userTag) {
     try {
+        const groqKey = process.env.GROQ_API_KEY;
         let history = conversationHistory.get(userTag) || [];
         
-        const chat = model.startChat({
-            history: [
-                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "Thinking process initialized. I am ready." }] },
-                ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] }))
-            ]
+        // Step 1: Simulate the "Thinking" delay (6 seconds of deep analysis)
+        await sleep(6000);
+
+        const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                ...history,
+                { role: "user", content: query }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.3 // Slightly higher for more creative/thoughtful replies
+        }, {
+            headers: { 'Authorization': `Bearer ${groqKey}` },
+            timeout: 25000
         });
 
-        const result = await chat.sendMessage(query);
-        const raw = result.response.text();
+        const raw = response.data.choices[0].message.content;
         const data = JSON.parse(raw);
 
+        // Keep history for context
         history.push({ role: "user", content: query });
-        history.push({ role: "model", content: raw });
-        if (history.length > 10) history = history.slice(-10);
+        history.push({ role: "assistant", content: raw });
+        if (history.length > 8) history = history.slice(-8);
         conversationHistory.set(userTag, history);
 
-        return data;
+        // We only return actions and response, thought_process stays internal/hidden if you want
+        return {
+            actions: data.actions,
+            response: data.response
+        };
 
     } catch (error) {
-        console.error('[GEMINI-2.5-PRO-ERROR]', error.message);
-        return { actions: [], response: "AI Error (Deep Thinking): " + error.message };
+        console.error('[THINKING-ENGINE-ERROR]', error.message);
+        return { actions: [], response: "Analysis Failed: " + error.message };
     }
 }
 
