@@ -67,6 +67,10 @@ module.exports = {
 
         // AI Processing
         if (isAI) {
+            // STRICT: Only Server Owner or those with Administrator permissions can trigger the AI
+            const isOwner = message.author.id === message.guild.ownerId || message.member.permissions.has(PermissionsBitField.Flags.Administrator);
+            if (!isOwner) return;
+
             const query = message.content.slice(message.content.startsWith(prefix) ? prefix.length : queryPrefix.length).trim();
             if (!query) return;
 
