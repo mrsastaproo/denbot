@@ -30,3 +30,5 @@ Railway should detect your `package.json` and use `npm start`. If it doesn't:
 ### ⚠️ Important Notes:
 - **den$close Fixed**: I have updated the bot so `den$close` now works in your new Deal channels too!
 - **Creator Panel**: After deploying, use `/setup-creator-apply` in the channel where you want creators to see the "Apply" button.
+
+To Kill :- taskkill /F /IM node.exe

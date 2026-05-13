@@ -125,11 +125,14 @@ module.exports = {
 
                 if (result.response) {
                     await message.reply(`${result.response}\n\n*ID: ${client.instanceId}*`).catch(() => message.channel.send(result.response));
+                } else if (results.length === 0) {
+                    await message.reply("\u26A0\uFE0F **Analysis complete but no specific response or actions were generated.**").catch(() => {});
                 }
 
             } catch (error) {
                 console.error('AI Fatal Error:', error);
-                await typingMsg.edit("\u274c **Strategic Analysis Failed.** Infrastructure issue detected.").catch(() => {});
+                const errorMsg = error.message.includes('JSON') ? 'Invalid response format from AI.' : 'Infrastructure issue detected.';
+                await typingMsg.edit(`\u274c **Strategic Analysis Failed.** ${errorMsg}`).catch(() => {});
             }
         }
     }
