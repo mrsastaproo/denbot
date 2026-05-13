@@ -164,31 +164,40 @@ module.exports = {
                                 results.push(`🔓 Unlocked **#${target.name}**`);
 
                             } else if (act.action === 'move_user') {
-                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
-                                if (member && member.voice.channel) {
-                                    await member.voice.setChannel(act.parameters?.channel).catch(() => {});
-                                    results.push(`🚚 Moved **${member.user.tag}** to **#${message.guild.channels.cache.get(act.parameters?.channel)?.name || 'target'}**`);
+                                const userId = act.parameters?.user?.toString().replace(/[<@!>]/g, '');
+                                if (userId) {
+                                    const member = await message.guild.members.fetch(userId).catch(() => null);
+                                    if (member && member.voice.channel) {
+                                        await member.voice.setChannel(act.parameters?.channel).catch(() => {});
+                                        results.push(`🚚 Moved **${member.user.tag}** to **#${message.guild.channels.cache.get(act.parameters?.channel)?.name || 'target'}**`);
+                                    }
                                 }
 
                             } else if (act.action === 'disconnect_user') {
-                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
-                                if (member && member.voice.channel) {
-                                    await member.voice.disconnect().catch(() => {});
-                                    results.push(`🔌 Disconnected **${member.user.tag}** from voice`);
+                                const userId = act.parameters?.user?.toString().replace(/[<@!>]/g, '');
+                                if (userId) {
+                                    const member = await message.guild.members.fetch(userId).catch(() => null);
+                                    if (member && member.voice.channel) {
+                                        await member.voice.disconnect().catch(() => {});
+                                        results.push(`🔌 Disconnected **${member.user.tag}** from voice`);
+                                    }
                                 }
 
                             } else if (act.action === 'set_nickname') {
-                                const member = await message.guild.members.fetch(act.parameters?.user.replace(/[<@!>]/g, '')).catch(() => null);
-                                if (member) {
-                                    await member.setNickname(act.parameters?.nickname).catch(() => {});
-                                    results.push(`📛 Set nickname for **${member.user.tag}** to **${act.parameters?.nickname}**`);
+                                const userId = act.parameters?.user?.toString().replace(/[<@!>]/g, '');
+                                if (userId) {
+                                    const member = await message.guild.members.fetch(userId).catch(() => null);
+                                    if (member) {
+                                        await member.setNickname(act.parameters?.nickname).catch(() => {});
+                                        results.push(`📛 Set nickname for **${member.user.tag}** to **${act.parameters?.nickname}**`);
+                                    }
                                 }
 
                             } else if (act.action === 'set_permissions') {
                                 const target = findChannel(act.parameters?.channel);
-                                if (target) {
-                                    const role = message.guild.roles.cache.get(act.parameters?.role.replace(/[<@&>]/g, ''));
-                                    if (role) {
+                                const roleId = act.parameters?.role?.toString().replace(/[<@&>]/g, '');
+                                if (target && roleId) {
+                                    const role = message.guild.roles.cache.get(roleId);
                                         const allow = {}; act.parameters.allow?.forEach(p => allow[p] = true);
                                         const deny = {}; act.parameters.deny?.forEach(p => deny[p] = false);
                                         await target.permissionOverwrites.edit(role, { ...allow, ...deny }).catch(() => {});
