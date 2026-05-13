@@ -26,10 +26,11 @@ module.exports = {
         if (modResult.actions && modResult.actions.length > 0) {
             // Check if this is a link violation (we block links for everyone)
             const isLinkViolation = modResult.response?.toLowerCase().includes('link');
+            const isLanguageViolation = modResult.response?.toLowerCase().includes('english') || modResult.response?.toLowerCase().includes('hinglish');
             
-            // If it's NOT a link violation, staff still bypass (e.g. Hinglish is okay for staff)
-            if (isStaff && !isLinkViolation) {
-                // Staff bypass Hinglish/Bad words, but NOT Links
+            // If it's NOT a link or language violation in English chat, staff still bypass
+            if (isStaff && !isLinkViolation && !(isLanguageViolation && forceEnglish)) {
+                // Staff bypass Bad words, but NOT Links or Language in English chats
             } else {
                 for (const act of modResult.actions) {
                     try {
@@ -37,6 +38,7 @@ module.exports = {
                             await message.delete().catch(() => {});
                         } else if (act.action === 'timeout') {
                             const member = message.member || await message.guild.members.fetch(message.author.id);
+                            // We don't timeout staff/owners, only delete their messages
                             if (member && member.moderatable && !isStaff) {
                                 await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
                             }
