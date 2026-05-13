@@ -79,8 +79,27 @@ module.exports = {
 
                 const findChannel = (input) => {
                     if (!input) return null;
-                    const clean = String(input).replace(/[<#>]/g, '');
-                    return message.guild.channels.cache.get(clean) || message.guild.channels.cache.find(c => c.name.toLowerCase().includes(String(input).toLowerCase()));
+                    const query = String(input).toLowerCase().replace(/[<#>]/g, '').trim();
+                    
+                    // Direct "this channel" logic
+                    if (query.includes('this channel') || query === 'here') return message.channel;
+
+                    const channels = message.guild.channels.cache;
+                    
+                    // 1. Try exact ID
+                    let target = channels.get(query);
+                    if (target) return target;
+
+                    // 2. Try clean name match (stripping emojis/symbols)
+                    target = channels.find(c => {
+                        const cleanName = c.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                        const cleanQuery = query.replace(/[^a-z0-9-]/g, '');
+                        return cleanName === cleanQuery || cleanName.includes(cleanQuery);
+                    });
+                    if (target) return target;
+
+                    // 3. Fallback to standard includes
+                    return channels.find(c => c.name.toLowerCase().includes(query));
                 };
 
                 if (result.actions && Array.isArray(result.actions)) {

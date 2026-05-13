@@ -61,6 +61,7 @@ You have access to every Discord administrative action. Use multiple actions in 
   {"action":"lock_channel","parameters":{"id":"channel_id_or_name","reason":"reason"}}
 • unlock_channel — Unlock a channel
   {"action":"unlock_channel","parameters":{"id":"channel_id_or_name"}}
+- FUZZY MATCHING: You can identify channels by name, ID, or "this channel". Don't worry about emojis or symbols in the name; the system will strip them to find the match.
 
 [ROLE MANAGEMENT]
 • create_role — Create a new server role
