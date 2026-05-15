@@ -32,7 +32,8 @@ client.config = {
     ticketCategory: process.env.TICKET_CATEGORY_ID,
     staffRole: process.env.STAFF_ROLE_ID,
     welcomeChannel: process.env.WELCOME_CHANNEL_ID,
-    staffAppCategory: process.env.STAFF_APP_CATEGORY_ID
+    staffAppCategory: process.env.STAFF_APP_CATEGORY_ID,
+    ownerIds: process.env.OWNER_IDS ? process.env.OWNER_IDS.split(',') : []
 };
 
 // Handlers load karo

@@ -178,9 +178,18 @@ async function callNvidiaNIM(messages, isModeration = false, retries = 2, modelO
 async function moderateMessage(content, channelName = "") {
     try {
         // --- FAST PATH: Instant Regex Checks (0ms delay) ---
-        const linkRegex = /(https?:\/\/[^\s]+|discord\.gg\/[^\s]+|[a-z0-9]+\.[a-z]{2,})/gi;
-        if (linkRegex.test(content)) {
-            console.log(`[LINK-DETECTED] Link found in: "${content}"`);
+        const tlds = ['com', 'net', 'org', 'in', 'xyz', 'gg', 'me', 'biz', 'info', 'io', 'tk', 'ml', 'ga', 'cf', 'gq', 'co', 'be', 'link', 'app', 'dev'];
+        
+        // Protocol or obvious invite check
+        const protocolRegex = /https?:\/\/[^\s]+/gi;
+        const inviteRegex = /discord\.gg\/[a-z0-9-]+/gi;
+        
+        // Obfuscated link check (e.g. google . com)
+        const spaceStripped = content.toLowerCase().replace(/\s+/g, '');
+        const obfuscatedLinkRegex = new RegExp(`[a-z0-9-]+\\.(?!\\.)(${tlds.join('|')})($|[^a-z0-9])`, 'i');
+
+        if (protocolRegex.test(content) || inviteRegex.test(content) || obfuscatedLinkRegex.test(spaceStripped)) {
+            console.log(`[LINK-DETECTED] Unauthorized link in: "${content}"`);
             return {
                 actions: [{action: "delete_message"}, {action: "timeout", parameters: {duration: 10, reason: "Unauthorized Links"}}],
                 response: "External links are prohibited in this domain."

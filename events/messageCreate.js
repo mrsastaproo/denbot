@@ -14,32 +14,38 @@ module.exports = {
         const isAI = message.content.startsWith(prefix) || message.content.startsWith(queryPrefix);
         const isStaffCmd = message.content.startsWith(staffPrefix);
         const isModeratedChannel = message.channel.id === client.config.strictLogChannel;
-        const isStaff = message.member.permissions.has('Administrator') || message.member.roles.cache.has(client.config.staffRole);
+        const isStaff = message.member.permissions.has(PermissionsBitField.Flags.Administrator) || message.member.roles.cache.has(client.config.staffRole);
+        const isOwner = message.author.id === message.guild.ownerId || client.config.ownerIds.includes(message.author.id) || message.member.permissions.has(PermissionsBitField.Flags.Administrator);
 
         // --- Instant Code-Based Moderation (No AI Delay) ---
-        const isEnglishChatID = message.channel.id === '1503896954038517840';
-        const forceEnglish = isEnglishChatID || message.channel.name.toLowerCase().includes('english');
+        const isEnglishChatID = '1503896954038517840';
+        const forceEnglish = message.channel.id === isEnglishChatID || message.channel.name.toLowerCase().includes('english');
         
-        // Moderation (Now applies to everyone for links, but staff still bypass simple text/hinglish)
-        const modResult = fastModerate(message.content, forceEnglish ? "english" : message.channel.name);
-        
-        if (modResult.actions && modResult.actions.length > 0) {
-            // Check if this is a link violation (we block links for everyone)
-            const isLinkViolation = modResult.response?.toLowerCase().includes('link');
-            const isLanguageViolation = modResult.response?.toLowerCase().includes('english') || modResult.response?.toLowerCase().includes('hinglish');
+        // MODERATION BYPASS: Owners and Staff are NOT moderated at all.
+        // Explicitly include the IDs requested by the user just in case config fails
+        const appOwners = ['1496085984297877514', '952484390850658324'];
+        const isBypassed = isOwner || isStaff || appOwners.includes(message.author.id);
+
+        if (!isBypassed) {
+            let modResult = fastModerate(message.content, forceEnglish ? "english" : message.channel.name);
             
-            // If it's NOT a link or language violation in English chat, staff still bypass
-            if (isStaff && !isLinkViolation && !(isLanguageViolation && forceEnglish)) {
-                // Staff bypass Bad words, but NOT Links or Language in English chats
-            } else {
+            // BRAIN: If fast moderation is clean, run AI moderation for more subtle violations
+            // We only do this for messages with some content to avoid wasting API calls on "hi" or "ok"
+            if ((!modResult.actions || modResult.actions.length === 0) && message.content.length > 5) {
+                const aiModResult = await moderateMessage(message.content, forceEnglish ? "english" : message.channel.name);
+                if (aiModResult && aiModResult.actions && aiModResult.actions.length > 0) {
+                    modResult = aiModResult;
+                }
+            }
+
+            if (modResult.actions && modResult.actions.length > 0) {
                 for (const act of modResult.actions) {
                     try {
                         if (act.action === 'delete_message') {
                             await message.delete().catch(() => {});
                         } else if (act.action === 'timeout') {
                             const member = message.member || await message.guild.members.fetch(message.author.id);
-                            // We don't timeout staff/owners, only delete their messages
-                            if (member && member.moderatable && !isStaff) {
+                            if (member && member.moderatable) {
                                 await member.timeout((act.parameters?.duration || 10) * 60000, act.parameters?.reason || 'Auto-Mod Violation');
                             }
                         }
@@ -75,7 +81,6 @@ module.exports = {
         // AI Processing
         if (isAI) {
             // STRICT: Only Server Owner or those with Administrator permissions can trigger the AI
-            const isOwner = message.author.id === message.guild.ownerId || message.member.permissions.has(PermissionsBitField.Flags.Administrator);
             if (!isOwner) return;
 
             const query = message.content.slice(message.content.startsWith(prefix) ? prefix.length : queryPrefix.length).trim();
